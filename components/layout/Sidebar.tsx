@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useSessionsStore } from "@/lib/store/sessions";
-import { clearSessionMessages } from "@/components/chat/ChatInterface";
+import {
+  clearSessionMessages,
+  saveMessages,
+} from "@/lib/chat/client-messages";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { CronsPanel } from "@/components/layout/CronsPanel";
 import type { Skill } from "@/types";
 
 interface UsageSummary {
@@ -35,17 +39,26 @@ function timeAgo(timestamp: number): string {
 export function Sidebar() {
   const {
     sessions,
+    cronSessions,
     activeSessionId,
     sidebarOpen,
     workspacePath,
     createSession,
     setActiveSession,
     deleteSession,
+    setCronSessions,
     setSidebarOpen,
   } = useSessionsStore();
 
   const [skills, setSkills] = useState<Skill[]>([]);
-  const [tab, setTab] = useState<"sessions" | "skills">("sessions");
+  const [cronsCount, setCronsCount] = useState(0);
+  const [tab, setTab] = useState<"sessions" | "crons" | "skills">("sessions");
+
+  useEffect(() => {
+    const onSwitch = () => setTab("sessions");
+    window.addEventListener("openpaw-switch-to-sessions", onSwitch);
+    return () => window.removeEventListener("openpaw-switch-to-sessions", onSwitch);
+  }, []);
   const [installInput, setInstallInput] = useState("");
   const [installing, setInstalling] = useState(false);
   const [usageBySession, setUsageBySession] = useState<Record<string, UsageSummary>>({});
@@ -59,6 +72,39 @@ export function Sidebar() {
       .then((d) => setSkills(d.skills ?? []))
       .catch(() => {});
   }, [workspacePath]);
+
+  useEffect(() => {
+    fetch("/api/crons")
+      .then((r) => r.json())
+      .then((d) => setCronsCount((d.jobs ?? []).length))
+      .catch(() => {});
+  }, [tab]);
+
+  const fetchCronSessions = useCallback(() => {
+    fetch("/api/cron-sessions", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        const list = d.sessions ?? [];
+        setCronSessions(list);
+        for (const { session, messages } of list) {
+          if (session?.id && messages?.length) {
+            saveMessages(session.id, messages);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [setCronSessions]);
+
+  useEffect(() => {
+    fetchCronSessions();
+  }, [fetchCronSessions]);
+
+  useEffect(() => {
+    const onCronSessionCreated = () => fetchCronSessions();
+    window.addEventListener("openpaw-cron-session-created", onCronSessionCreated);
+    return () =>
+      window.removeEventListener("openpaw-cron-session-created", onCronSessionCreated);
+  }, [fetchCronSessions]);
 
   // Fetch usage for sessions when tab or active session changes
   const fetchUsage = (ids: string[]) => {
@@ -74,11 +120,21 @@ export function Sidebar() {
     });
   };
 
+  const allSessions = [
+    ...cronSessions.map((c) => ({ ...c.session, _source: "cron" as const })),
+    ...sessions.map((s) => ({ ...s, _source: "user" as const })),
+  ].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+
   // Fetch usage for all sessions when app loads and when sessions tab is shown
   useEffect(() => {
-    if (tab !== "sessions" || sessions.length === 0) return;
-    fetchUsage(sessions.map((s) => s.id));
-  }, [tab, sessions]);
+    if (tab !== "sessions") return;
+    const ids = [
+      ...cronSessions.map((c) => c.session.id),
+      ...sessions.map((s) => s.id),
+    ];
+    if (ids.length === 0) return;
+    fetchUsage(ids);
+  }, [tab, sessions, cronSessions]);
 
   // Refetch usage when chat completes (immediate) and poll as fallback
   useEffect(() => {
@@ -146,7 +202,7 @@ export function Sidebar() {
           // Mobile: bottom sheet
           "fixed md:relative z-50 md:z-auto",
           "bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:right-auto md:top-0",
-          "md:w-64 md:h-full md:shrink-0",
+          "md:w-80 md:h-full md:shrink-0",
           "transition-transform duration-300 ease-out",
           // Mobile show/hide
           sidebarOpen
@@ -176,9 +232,25 @@ export function Sidebar() {
               )}
             >
               Sessions
-              {sessions.length > 0 && (
+              {allSessions.length > 0 && (
                 <span className="text-[10px] opacity-60">
-                  {sessions.length}
+                  {allSessions.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab("crons")}
+              className={cn(
+                "flex-1 text-xs py-1.5 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1.5",
+                tab === "crons"
+                  ? "bg-white/8 text-text-primary"
+                  : "text-text-muted hover:text-text-secondary"
+              )}
+            >
+              Crons
+              {cronsCount > 0 && (
+                <span className="text-[10px] opacity-60">
+                  {cronsCount}
                 </span>
               )}
             </button>
@@ -214,7 +286,7 @@ export function Sidebar() {
                 + New Chat
               </Button>
 
-              {sessions.map((session) => (
+              {allSessions.map((session) => (
                 <div
                   key={session.id}
                   className={cn(
@@ -226,9 +298,16 @@ export function Sidebar() {
                   onClick={() => setActiveSession(session.id)}
                 >
                   <div className="flex-1 min-w-0">
-                    <span className="block truncate">{session.title}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="block truncate">{session.title}</span>
+                      {session._source === "cron" && (
+                        <Badge variant="default" className="shrink-0 text-[9px]">
+                          cron
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-[10px] text-text-muted block">
-                      {timeAgo(session.updatedAt)}
+                      {timeAgo(session.updatedAt ?? 0)}
                     </span>
                     {usageBySession[session.id]?.requestCount ? (
                       <span className="text-[10px] text-accent-cyan/90 font-mono">
@@ -240,6 +319,11 @@ export function Sidebar() {
                     onClick={(e) => {
                       e.stopPropagation();
                       clearSessionMessages(session.id);
+                      if (session._source === "cron") {
+                        fetch(`/api/cron-sessions?sessionId=${encodeURIComponent(session.id)}`, {
+                          method: "DELETE",
+                        }).catch(() => {});
+                      }
                       deleteSession(session.id);
                     }}
                     className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-opacity cursor-pointer text-xs shrink-0"
@@ -249,12 +333,14 @@ export function Sidebar() {
                 </div>
               ))}
 
-              {sessions.length === 0 && (
+              {allSessions.length === 0 && (
                 <p className="text-text-muted text-xs text-center py-4">
                   No sessions yet
                 </p>
               )}
             </div>
+          ) : tab === "crons" ? (
+            <CronsPanel />
           ) : (
             <div className="flex-1 overflow-y-auto space-y-2">
               {/* Install skill */}

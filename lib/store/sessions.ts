@@ -4,9 +4,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Session } from "@/types";
 import { DEFAULT_MODEL_ID } from "@/lib/models/providers";
+import type { CronSessionData } from "@/lib/crons/cron-sessions";
 
 interface SessionsState {
   sessions: Session[];
+  cronSessions: CronSessionData[];
   activeSessionId: string | null;
   modelId: string;
   workspacePath: string;
@@ -16,6 +18,7 @@ interface SessionsState {
   setActiveSession: (id: string) => void;
   updateSessionTitle: (id: string, title: string) => void;
   deleteSession: (id: string) => void;
+  setCronSessions: (data: CronSessionData[]) => void;
   setModelId: (modelId: string) => void;
   setWorkspacePath: (path: string) => void;
   setSidebarOpen: (open: boolean) => void;
@@ -29,6 +32,7 @@ export const useSessionsStore = create<SessionsState>()(
   persist(
     (set, get) => ({
       sessions: [],
+      cronSessions: [],
       activeSessionId: null,
       modelId: DEFAULT_MODEL_ID,
       workspacePath: "",
@@ -61,13 +65,23 @@ export const useSessionsStore = create<SessionsState>()(
         })),
 
       deleteSession: (id) =>
-        set((state) => ({
-          sessions: state.sessions.filter((s) => s.id !== id),
-          activeSessionId:
+        set((state) => {
+          const nextSessions = state.sessions.filter((s) => s.id !== id);
+          const nextCronSessions = state.cronSessions.filter(
+            (c) => c.session.id !== id
+          );
+          const nextId =
             state.activeSessionId === id
-              ? state.sessions.find((s) => s.id !== id)?.id ?? null
-              : state.activeSessionId,
-        })),
+              ? nextSessions[0]?.id ?? nextCronSessions[0]?.session.id ?? null
+              : state.activeSessionId;
+          return {
+            sessions: nextSessions,
+            cronSessions: nextCronSessions,
+            activeSessionId: nextId,
+          };
+        }),
+
+      setCronSessions: (data) => set({ cronSessions: data }),
 
       setModelId: (modelId) => set({ modelId }),
       setWorkspacePath: (workspacePath) => set({ workspacePath }),

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Command } from "cmdk";
 import { cn } from "@/lib/utils";
 import { useConfiguredProviders } from "@/lib/hooks/use-configured-providers";
 import { useSessionsStore } from "@/lib/store/sessions";
+import { setPendingMessage } from "@/lib/store/pending-message";
 
 interface CommandPaletteProps {
   open: boolean;
@@ -14,18 +15,29 @@ interface CommandPaletteProps {
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const {
     sessions,
+    cronSessions,
     modelId,
     setModelId,
     setActiveSession,
     createSession,
     setWorkspacePath,
   } = useSessionsStore();
+
+  const allSessions = [
+    ...cronSessions.map((c) => c.session),
+    ...sessions,
+  ].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
   const { configuredModels } = useConfiguredProviders();
 
   const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) setSearch("");
+    if (open) {
+      setSearch("");
+      // Focus input when palette opens (requestAnimationFrame ensures DOM is ready)
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
   }, [open]);
 
   if (!open) return null;
@@ -59,9 +71,10 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 <path d="M21 21l-4.35-4.35" />
               </svg>
               <Command.Input
+                ref={inputRef}
                 value={search}
                 onValueChange={setSearch}
-                placeholder="Type a command or search..."
+                placeholder="Type a command, search chats, or send as new message..."
                 className="flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
               />
               <kbd className="text-[10px] font-mono text-text-muted bg-white/5 px-1.5 py-0.5 rounded border border-white/8">
@@ -74,6 +87,37 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
               <Command.Empty className="py-6 text-center text-sm text-text-muted">
                 No results found.
               </Command.Empty>
+
+              {/* Send as new chat - when search doesn't match commands/sessions */}
+              {search.trim() && (
+                <Command.Group
+                  heading="Quick send"
+                  className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-text-muted [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5"
+                >
+                  <Command.Item
+                    value={`send ${search}`}
+                    forceMount
+                    onSelect={() => {
+                      const text = search.trim();
+                      if (!text) return;
+                      const sid = createSession();
+                      setActiveSession(sid);
+                      setPendingMessage(text);
+                      onOpenChange(false);
+                      window.dispatchEvent(new CustomEvent("openpaw-new-chat"));
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm cursor-pointer",
+                      "text-text-secondary data-[selected=true]:bg-accent-cyan/10 data-[selected=true]:text-accent-cyan"
+                    )}
+                  >
+                    <span className="text-xs">↩</span>
+                    <span className="flex-1 truncate">
+                      Send as new chat: {search.length > 40 ? search.slice(0, 40) + "…" : search}
+                    </span>
+                  </Command.Item>
+                </Command.Group>
+              )}
 
               {/* Sessions */}
               <Command.Group
@@ -94,7 +138,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                   <span className="text-xs">+</span>
                   New Chat Session
                 </Command.Item>
-                {sessions.slice(0, 5).map((session) => (
+                {allSessions.slice(0, 5).map((session) => (
                   <Command.Item
                     key={session.id}
                     value={`session ${session.title}`}

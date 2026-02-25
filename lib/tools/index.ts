@@ -7,6 +7,12 @@ import {
 } from "./filesystem";
 import { executeCode } from "./execute-code";
 import { askChoice } from "./ask-choice";
+import {
+  createCronTool,
+  updateCronTool,
+  deleteCronTool,
+  listCronsTool,
+} from "./cron";
 
 export function allTools(workspacePath: string) {
   return {
@@ -17,5 +23,9 @@ export function allTools(workspacePath: string) {
     listDirectory: listDirectory(workspacePath),
     createDirectory: createDirectory(workspacePath),
     executeCode: executeCode(workspacePath),
+    createCron: createCronTool(workspacePath),
+    updateCron: updateCronTool(workspacePath),
+    deleteCron: deleteCronTool(),
+    listCrons: listCronsTool(),
   };
 }

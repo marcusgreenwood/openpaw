@@ -6,34 +6,38 @@ import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { MessageList } from "./MessageList";
 import { InputBar } from "./InputBar";
 import { useSessionsStore } from "@/lib/store/sessions";
+import { consumePendingMessage } from "@/lib/store/pending-message";
+import {
+  loadMessages,
+  saveMessages,
+} from "@/lib/chat/client-messages";
 
-/* ── localStorage helpers for message persistence ───────────── */
+export { clearSessionMessages } from "@/lib/chat/client-messages";
 
-const STORAGE_PREFIX = "openpaw-messages-";
-
-function loadMessages(sessionId: string): UIMessage[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + sessionId);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
+/** Extract text from message parts for title generation */
+function getMessageText(message: UIMessage): string {
+  if (!message.parts) return "";
+  const texts: string[] = [];
+  for (const part of message.parts) {
+    if (part.type === "text" && "text" in part && typeof part.text === "string") {
+      texts.push(part.text);
+    }
   }
+  return texts.join(" ").trim();
 }
 
-function saveMessages(sessionId: string, messages: UIMessage[]) {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + sessionId, JSON.stringify(messages));
-  } catch {
-    // quota exceeded — silently ignore
-  }
-}
-
-export function clearSessionMessages(sessionId: string) {
-  try {
-    localStorage.removeItem(STORAGE_PREFIX + sessionId);
-  } catch {
-    // ignore
-  }
+/** Generate chat title from first 5 messages (prefer first user message) */
+function deriveTitleFromMessages(messages: UIMessage[]): string | null {
+  const firstFive = messages.slice(0, 5);
+  const firstUser = firstFive.find((m) => m.role === "user");
+  const fallback = firstFive[0];
+  const primary = firstUser ? getMessageText(firstUser) : (fallback ? getMessageText(fallback) : "");
+  if (!primary) return null;
+  return primary
+    .replace(/\n/g, " ")
+    .trim()
+    .slice(0, 50)
+    .replace(/\s+\S*$/, "") || null;
 }
 
 /* ── Component ──────────────────────────────────────────────── */
@@ -71,6 +75,23 @@ export function ChatInterface() {
     messages: initialMessages,
   });
 
+  // Send pending message from command palette (cmd+k) or cron run now
+  useEffect(() => {
+    if (!activeSessionId) return;
+    const pending = consumePendingMessage();
+    if (pending) {
+      const title =
+        pending.title ??
+        pending.text
+          .replace(/\n/g, " ")
+          .trim()
+          .slice(0, 50)
+          .replace(/\s+\S*$/, "");
+      updateSessionTitle(activeSessionId, title || "New Chat");
+      sendMessage({ text: pending.text });
+    }
+  }, [activeSessionId, sendMessage, updateSessionTitle]);
+
   // Persist messages when:
   //  1. message count changes (new user/assistant message)
   //  2. status transitions to "ready" (tool results finished, stream complete)
@@ -90,6 +111,13 @@ export function ChatInterface() {
     if (lengthChanged || justFinished) {
       saveMessages(activeSessionId, messages);
       if (justFinished) {
+        // Re-generate title from first 5 messages when chat completes
+        if (messages.length >= 1 && messages.length <= 5) {
+          const derived = deriveTitleFromMessages(messages);
+          if (derived && derived.length > 2) {
+            updateSessionTitle(activeSessionId, derived);
+          }
+        }
         window.dispatchEvent(
           new CustomEvent("openpaw-chat-complete", {
             detail: { sessionId: activeSessionId },
@@ -97,7 +125,7 @@ export function ChatInterface() {
         );
       }
     }
-  }, [activeSessionId, messages, status]);
+  }, [activeSessionId, messages, status, updateSessionTitle]);
 
   const handleSend = useCallback(() => {
     if (!input.trim()) return;

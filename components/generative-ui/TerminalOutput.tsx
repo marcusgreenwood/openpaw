@@ -31,7 +31,7 @@ export function TerminalOutput({
             {language ?? "bash"}
           </span>
           {command && (
-            <code className="text-xs text-text-secondary truncate max-w-[300px]">
+            <code className="text-xs text-text-secondary whitespace-pre-wrap break-all block max-w-full overflow-x-auto">
               {command}
             </code>
           )}
