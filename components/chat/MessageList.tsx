@@ -10,6 +10,7 @@ interface MessageListProps {
   error?: Error;
   onSuggestion?: (text: string) => void;
   onChoiceSelect?: (option: string) => void;
+  onContinue?: () => void;
 }
 
 /**
@@ -18,7 +19,20 @@ interface MessageListProps {
  */
 const SCROLL_THRESHOLD = 120;
 
-export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect }: MessageListProps) {
+/** Check if the last assistant message likely hit the tool-step limit (ends with tool calls, not askChoice) */
+function lastMessageEndsWithToolCalls(messages: UIMessage[]): boolean {
+  if (messages.length === 0) return false;
+  const last = messages[messages.length - 1];
+  if (last.role !== "assistant" || !last.parts?.length) return false;
+  const lastPart = last.parts[last.parts.length - 1];
+  if (typeof lastPart?.type !== "string" || !lastPart.type.startsWith("tool-"))
+    return false;
+  const toolName = lastPart.type.slice(5);
+  if (toolName === "askChoice") return false;
+  return true;
+}
+
+export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect, onContinue }: MessageListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -114,6 +128,11 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
     status === "submitted" &&
     lastMsg?.role === "user";
 
+  const showContinueBanner =
+    status === "ready" &&
+    onContinue &&
+    lastMessageEndsWithToolCalls(messages);
+
   return (
     <div
       ref={scrollContainerRef}
@@ -140,6 +159,23 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
                   style={{ animationDelay: "0.6s" }}
                 />
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Continue banner — shown when response stopped at tool-step limit */}
+        {showContinueBanner && (
+          <div className="flex justify-start mb-4">
+            <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-3 max-w-xl">
+              <p className="text-sm text-amber-200/90 mb-2">
+                The agent reached the maximum number of tool steps. Would you like to continue?
+              </p>
+              <button
+                onClick={onContinue}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-500/20 border border-amber-500/30 text-amber-200 hover:bg-amber-500/30 transition-colors cursor-pointer"
+              >
+                Continue
+              </button>
             </div>
           </div>
         )}

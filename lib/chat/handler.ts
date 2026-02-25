@@ -70,7 +70,8 @@ export async function handleChatStreaming(
   messages: UIMessage[],
   modelId = "anthropic/claude-sonnet-4-5",
   workspacePath?: string,
-  sessionId?: string
+  sessionId?: string,
+  maxToolSteps?: number
 ) {
   const { model, systemPrompt, tools } = await buildContext(
     modelId,
@@ -78,13 +79,14 @@ export async function handleChatStreaming(
   );
 
   const modelMessages = await convertToModelMessages(messages);
+  const steps = maxToolSteps ?? MAX_TOOL_STEPS;
 
   return streamText({
     model,
     system: systemPrompt,
     messages: modelMessages,
     tools,
-    stopWhen: [stepCountIs(MAX_TOOL_STEPS), hasToolCall("askChoice")],
+    stopWhen: [stepCountIs(steps), hasToolCall("askChoice")],
     onStepFinish({ toolCalls, finishReason }) {
       console.log(
         `[OpenPaw] reason=${finishReason} tools=${toolCalls.length}`

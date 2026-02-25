@@ -11,11 +11,13 @@ export async function POST(req: Request) {
     modelId = "anthropic/claude-sonnet-4-5",
     workspacePath,
     sessionId,
+    maxToolSteps,
   } = body as {
     messages?: UIMessage[];
     modelId?: string;
     workspacePath?: string;
     sessionId?: string;
+    maxToolSteps?: number;
   };
 
   console.log("[OpenPaw] POST /api/chat", {
@@ -30,7 +32,8 @@ export async function POST(req: Request) {
     messagesArray,
     modelId,
     workspacePath,
-    sessionId
+    sessionId,
+    maxToolSteps
   );
   return result.toUIMessageStreamResponse();
 }

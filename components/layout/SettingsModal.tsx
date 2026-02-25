@@ -15,8 +15,10 @@ type SettingsTab = "workspace" | "providers" | "channels";
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
-  const { workspacePath, setWorkspacePath } = useSessionsStore();
+  const { workspacePath, setWorkspacePath, maxToolSteps, setMaxToolSteps } =
+    useSessionsStore();
   const [tempPath, setTempPath] = useState(workspacePath);
+  const [tempMaxSteps, setTempMaxSteps] = useState(String(maxToolSteps ?? 15));
   const [defaultWorkspace, setDefaultWorkspace] = useState<string | null>(null);
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
       setTempPath(workspacePath);
+      setTempMaxSteps(String(maxToolSteps ?? 15));
       fetch("/api/config")
         .then((r) => r.json())
         .then((d) => setDefaultWorkspace(d.defaultWorkspace ?? null))
@@ -36,7 +39,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [open, onClose, workspacePath]);
+  }, [open, onClose, workspacePath, maxToolSteps]);
 
   if (!open) return null;
 
@@ -152,6 +155,41 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     Using: {defaultWorkspace}
                   </p>
                 )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  Max tool steps
+                </label>
+                <p className="text-xs text-text-muted mb-3">
+                  Maximum number of tool-call steps before the agent stops. When
+                  the limit is reached, you&apos;ll be asked if you want to
+                  continue.
+                </p>
+                <input
+                  type="number"
+                  min={5}
+                  max={100}
+                  value={tempMaxSteps}
+                  onChange={(e) => setTempMaxSteps(e.target.value)}
+                  onBlur={() => {
+                    const n = parseInt(tempMaxSteps, 10);
+                    if (Number.isFinite(n) && n >= 5 && n <= 100) {
+                      setMaxToolSteps(n);
+                    } else {
+                      setTempMaxSteps(String(maxToolSteps ?? 15));
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const n = parseInt(tempMaxSteps, 10);
+                      if (Number.isFinite(n) && n >= 5 && n <= 100) {
+                        setMaxToolSteps(n);
+                      }
+                    }
+                    if (e.key === "Escape") setTempMaxSteps(String(maxToolSteps ?? 15));
+                  }}
+                  className="w-full h-10 px-3 rounded-lg text-sm font-mono bg-white/5 border border-white/10 text-text-primary outline-none focus:border-accent-cyan/40"
+                />
               </div>
             </div>
           )}

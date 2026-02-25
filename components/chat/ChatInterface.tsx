@@ -43,8 +43,14 @@ function deriveTitleFromMessages(messages: UIMessage[]): string | null {
 /* ── Component ──────────────────────────────────────────────── */
 
 export function ChatInterface() {
-  const { modelId, workspacePath, activeSessionId, createSession, updateSessionTitle } =
-    useSessionsStore();
+  const {
+    modelId,
+    workspacePath,
+    maxToolSteps,
+    activeSessionId,
+    createSession,
+    updateSessionTitle,
+  } = useSessionsStore();
   const [input, setInput] = useState("");
 
   // Load persisted messages for current session
@@ -63,6 +69,7 @@ export function ChatInterface() {
             modelId: state.modelId,
             workspacePath: state.workspacePath,
             sessionId: state.activeSessionId ?? undefined,
+            maxToolSteps: state.maxToolSteps ?? 15,
           };
         },
       }),
@@ -159,6 +166,9 @@ export function ChatInterface() {
         error={error}
         onSuggestion={(text) => sendMessage({ text })}
         onChoiceSelect={(option) => sendMessage({ text: option })}
+        onContinue={() =>
+          sendMessage({ text: "Please continue from where you left off." })
+        }
       />
       <InputBar
         input={input}

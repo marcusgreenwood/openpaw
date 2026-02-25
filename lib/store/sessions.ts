@@ -12,6 +12,7 @@ interface SessionsState {
   activeSessionId: string | null;
   modelId: string;
   workspacePath: string;
+  maxToolSteps: number;
   sidebarOpen: boolean;
 
   createSession: () => string;
@@ -21,6 +22,7 @@ interface SessionsState {
   setCronSessions: (data: CronSessionData[]) => void;
   setModelId: (modelId: string) => void;
   setWorkspacePath: (path: string) => void;
+  setMaxToolSteps: (n: number) => void;
   setSidebarOpen: (open: boolean) => void;
 }
 
@@ -36,6 +38,7 @@ export const useSessionsStore = create<SessionsState>()(
       activeSessionId: null,
       modelId: DEFAULT_MODEL_ID,
       workspacePath: "",
+      maxToolSteps: 15,
       sidebarOpen: true,
 
       createSession: () => {
@@ -85,6 +88,7 @@ export const useSessionsStore = create<SessionsState>()(
 
       setModelId: (modelId) => set({ modelId }),
       setWorkspacePath: (workspacePath) => set({ workspacePath }),
+      setMaxToolSteps: (maxToolSteps) => set({ maxToolSteps }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
     }),
     {
@@ -94,6 +98,7 @@ export const useSessionsStore = create<SessionsState>()(
         activeSessionId: state.activeSessionId,
         modelId: state.modelId,
         workspacePath: state.workspacePath,
+        maxToolSteps: state.maxToolSteps,
       }),
     }
   )
