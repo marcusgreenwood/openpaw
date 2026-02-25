@@ -36,6 +36,13 @@ yarn-error.log*
 # vercel
 .vercel
 
+# openpaw
+.openpaw
+/workspace
+
+# claw config (contains channel secrets)
+.claw/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

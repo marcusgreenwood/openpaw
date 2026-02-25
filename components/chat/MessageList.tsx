@@ -1,0 +1,182 @@
+"use client";
+
+import { useRef, useEffect, useCallback, useState } from "react";
+import type { UIMessage } from "ai";
+import { MessageBubble } from "./MessageBubble";
+
+interface MessageListProps {
+  messages: UIMessage[];
+  status: "ready" | "submitted" | "streaming" | "error";
+  error?: Error;
+  onSuggestion?: (text: string) => void;
+  onChoiceSelect?: (option: string) => void;
+}
+
+/**
+ * Threshold in pixels — if the user is within this distance of the bottom
+ * we consider them "at the bottom" and will auto-scroll on new content.
+ */
+const SCROLL_THRESHOLD = 120;
+
+export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect }: MessageListProps) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+
+  /* ── Track whether user is near the bottom ─────────────────── */
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    setIsAtBottom(distanceFromBottom <= SCROLL_THRESHOLD);
+  }, []);
+
+  /* ── Scroll to bottom helper ───────────────────────────────── */
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    bottomRef.current?.scrollIntoView({ behavior });
+  }, []);
+
+  /* ── Auto-scroll when messages change or during streaming ──── */
+  useEffect(() => {
+    if (isAtBottom) {
+      scrollToBottom("smooth");
+    }
+  }, [messages, status, isAtBottom, scrollToBottom]);
+
+  /* ── Always snap to bottom on first load or new conversation ─ */
+  const prevMessageCountRef = useRef(0);
+  useEffect(() => {
+    // If messages went from 0 → N, or user just sent a message (count increased by 1+),
+    // snap to bottom instantly
+    const prev = prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+
+    if (prev === 0 && messages.length > 0) {
+      // New conversation loaded — snap immediately
+      requestAnimationFrame(() => scrollToBottom("instant"));
+      setIsAtBottom(true);
+    } else if (messages.length > prev) {
+      // New message added (user or assistant) — scroll down
+      setIsAtBottom(true);
+      requestAnimationFrame(() => scrollToBottom("smooth"));
+    }
+  }, [messages.length, scrollToBottom]);
+
+  if (messages.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-4 px-6">
+          <div className="flex items-center justify-center gap-3">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="shrink-0"
+              aria-hidden
+            >
+              <ellipse cx="12" cy="18" rx="5" ry="3.5" fill="currentColor" className="text-accent-cyan opacity-90" />
+              <circle cx="7.5" cy="10" r="2.2" fill="currentColor" className="text-accent-cyan" />
+              <circle cx="12" cy="7" r="2.2" fill="currentColor" className="text-accent-cyan" />
+              <circle cx="16.5" cy="10" r="2.2" fill="currentColor" className="text-accent-cyan" />
+            </svg>
+            <h1 className="text-4xl font-bold gradient-text">OpenPaw</h1>
+          </div>
+          <p className="text-text-secondary text-sm max-w-md mx-auto">
+            AI agent with full system access. Execute commands, write
+            code, manage files — all from a single chat interface.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2 mt-6">
+            {[
+              "List files in the workspace",
+              "Create a React component",
+              "Find a skill for testing",
+              "Write a Python script",
+            ].map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => onSuggestion?.(suggestion)}
+                className="text-xs text-text-muted border border-white/8 rounded-full px-3 py-1.5 hover:bg-white/5 hover:text-text-secondary transition-colors cursor-pointer"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Only show the dots indicator when waiting for first content
+  // (status is submitted but no assistant message started yet)
+  const lastMsg = messages[messages.length - 1];
+  const showWaiting =
+    status === "submitted" &&
+    lastMsg?.role === "user";
+
+  return (
+    <div
+      ref={scrollContainerRef}
+      onScroll={handleScroll}
+      className="flex-1 overflow-y-auto px-4 md:px-6 py-4"
+    >
+      <div className="max-w-4xl mx-auto">
+        {messages.map((message) => (
+          <MessageBubble key={message.id} message={message} onChoiceSelect={onChoiceSelect} />
+        ))}
+
+        {/* Waiting indicator — only when we haven't started receiving yet */}
+        {showWaiting && (
+          <div className="flex justify-start mb-4">
+            <div className="glass-bubble-assistant">
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse-glow" />
+                <div
+                  className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse-glow"
+                  style={{ animationDelay: "0.3s" }}
+                />
+                <div
+                  className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse-glow"
+                  style={{ animationDelay: "0.6s" }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Error banner */}
+        {error && (
+          <div className="flex justify-start mb-4">
+            <div className="rounded-lg bg-error/10 border border-error/20 px-4 py-3 max-w-xl">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-error text-xs font-semibold">Error</span>
+              </div>
+              <p className="text-sm text-error/80">
+                {error.message || "Something went wrong. Please try again."}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Scroll anchor — MUST be inside the scrollable container */}
+        <div ref={bottomRef} className="h-px" />
+      </div>
+
+      {/* Scroll-to-bottom button — shown when user has scrolled up */}
+      {!isAtBottom && (
+        <button
+          onClick={() => {
+            setIsAtBottom(true);
+            scrollToBottom("smooth");
+          }}
+          className="sticky bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-2/90 border border-white/10 text-text-secondary text-xs backdrop-blur-sm hover:bg-surface-2 hover:text-text-primary transition-all cursor-pointer shadow-lg"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+          Scroll to bottom
+        </button>
+      )}
+    </div>
+  );
+}
