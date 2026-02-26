@@ -105,14 +105,22 @@ function sanitizeHtml(html: string): string {
   });
 }
 
+/**
+ * Props for the AssistantContent component.
+ *
+ * @property children - Raw assistant message text (may contain Markdown and/or HTML blocks)
+ * @property className - Extra classes applied to the outer wrapper div
+ */
 interface AssistantContentProps {
   children: string;
   className?: string;
 }
 
 /**
- * Renders assistant message content, supporting both Markdown and Tailwind HTML.
- * HTML blocks use the format: <!--html-->...<!--/html-->
+ * Renders assistant message content, supporting interleaved Markdown and
+ * Tailwind HTML blocks. HTML sections are delimited by `<!--html-->…<!--/html-->`.
+ * Chart configs are extracted before DOMPurify sanitization to preserve large
+ * JSON attribute values, then re-injected via numeric `data-chart-index` refs.
  */
 export function AssistantContent({ children, className }: AssistantContentProps) {
   const segments = parseContent(children);

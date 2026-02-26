@@ -6,23 +6,51 @@ import type { Session } from "@/types";
 import { DEFAULT_MODEL_ID } from "@/lib/models/providers";
 import type { CronSessionData } from "@/lib/crons/cron-sessions";
 
+/**
+ * Shape of the persisted + in-memory sessions store.
+ *
+ * Persisted fields (via localStorage key `openpaw-sessions`):
+ *   - `sessions`, `activeSessionId`, `modelId`, `workspacePath`, `maxToolSteps`
+ *
+ * In-memory only (reset on page reload):
+ *   - `cronSessions`, `sidebarOpen`
+ */
 interface SessionsState {
+  /** All user-created chat sessions, newest first. */
   sessions: Session[];
+  /** Cron-generated sessions loaded from the server on mount. */
   cronSessions: CronSessionData[];
+  /** ID of the currently visible session, or null when none is selected. */
   activeSessionId: string | null;
+  /** Provider-qualified model ID used for new sessions (e.g. "anthropic/claude-sonnet-4-6"). */
   modelId: string;
+  /** Absolute path to the agent's working directory. Empty string = use server default. */
   workspacePath: string;
+  /** Maximum number of tool-call steps per request before the agent pauses. */
   maxToolSteps: number;
+  /** Whether the sidebar is visible (desktop) / expanded (mobile). */
   sidebarOpen: boolean;
 
+  /** Creates a new session, prepends it to the list, sets it as active, and returns its ID. */
   createSession: () => string;
+  /** Switches the active session without modifying the sessions list. */
   setActiveSession: (id: string) => void;
+  /** Updates the display title of a session and refreshes its `updatedAt` timestamp. */
   updateSessionTitle: (id: string, title: string) => void;
+  /**
+   * Removes a session (and any associated cron session) from the store.
+   * If the deleted session was active, focus moves to the next available session.
+   */
   deleteSession: (id: string) => void;
+  /** Replaces the entire cron sessions list (called on mount and after cron runs). */
   setCronSessions: (data: CronSessionData[]) => void;
+  /** Updates the active model ID (persisted). */
   setModelId: (modelId: string) => void;
+  /** Updates the workspace path (persisted). */
   setWorkspacePath: (path: string) => void;
+  /** Updates the max tool steps cap (persisted). */
   setMaxToolSteps: (n: number) => void;
+  /** Shows or hides the sidebar. */
   setSidebarOpen: (open: boolean) => void;
 }
 

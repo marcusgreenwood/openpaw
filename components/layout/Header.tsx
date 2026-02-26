@@ -5,10 +5,21 @@ import { ModelSwitcher } from "./ModelSwitcher";
 import { SettingsModal } from "./SettingsModal";
 import { useSessionsStore } from "@/lib/store/sessions";
 
+/**
+ * Props for the Header component.
+ *
+ * @property onOpenCommandPalette - Callback invoked when the Cmd+K button is clicked
+ */
 interface HeaderProps {
   onOpenCommandPalette: () => void;
 }
 
+/**
+ * Top navigation bar for the OpenPaw application.
+ * Contains the sidebar toggle, the OpenPaw logo, a settings button,
+ * the Cmd+K command palette trigger, and the ModelSwitcher dropdown.
+ * Renders the SettingsModal as a controlled child.
+ */
 export function Header({ onOpenCommandPalette }: HeaderProps) {
   const { sidebarOpen, setSidebarOpen } = useSessionsStore();
   const [settingsOpen, setSettingsOpen] = useState(false);

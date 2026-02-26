@@ -4,6 +4,11 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMoonshotAI } from "@ai-sdk/moonshotai";
 
+/**
+ * Registry of all supported LLM providers and their available models.
+ * Model IDs use the format `<provider>/<model-name>` (e.g. "anthropic/claude-sonnet-4-6").
+ * Add new models here to make them available in the ModelSwitcher and resolveModel.
+ */
 export const PROVIDER_REGISTRY: Record<string, ModelConfig[]> = {
   anthropic: [
     {
@@ -110,6 +115,16 @@ export const DEFAULT_MODEL_ID = "anthropic/claude-sonnet-4-6";
 
 export type ApiKeys = Record<string, string>;
 
+/**
+ * Resolves a provider-qualified model ID into an AI SDK language model instance.
+ * Parses the `<provider>/<name>` format, looks up an optional per-provider API
+ * key, and instantiates the appropriate SDK client.
+ *
+ * @param modelId - Provider-qualified model ID (e.g. "anthropic/claude-sonnet-4-6")
+ * @param apiKeys - Optional map of provider → API key (overrides env vars)
+ * @returns AI SDK language model ready for use with `generateText` / `streamText`
+ * @throws {Error} If the provider prefix is not registered
+ */
 export function resolveModel(
   modelId: string,
   apiKeys?: ApiKeys

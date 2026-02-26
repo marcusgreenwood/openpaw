@@ -12,6 +12,19 @@ async function loadPromptTemplate(): Promise<string> {
   return cachedPrompt;
 }
 
+/**
+ * Builds the full system prompt for a chat session by loading the base
+ * template from `lib/system-prompt.md` and interpolating runtime values.
+ *
+ * Interpolated placeholders:
+ *   - `{{CURRENT_DATETIME}}` — human-readable date/time string
+ *   - `{{WORKSPACE_SECTION}}` — workspace path instructions (omitted if no path)
+ *   - `{{SKILL_BLOCKS}}` — formatted skill descriptions or a "no skills" message
+ *
+ * @param skills - Installed skills to inject into the prompt
+ * @param workspacePath - Absolute path to the agent's working directory
+ * @returns The fully rendered system prompt string
+ */
 export async function buildSystemPrompt(
   skills: Skill[],
   workspacePath?: string

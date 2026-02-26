@@ -2,17 +2,29 @@
 
 import { cn } from "@/lib/utils";
 
+/** A single entry in the file tree. */
 interface FileEntry {
   name: string;
   type: "file" | "directory";
   path: string;
 }
 
+/**
+ * Props for the FileTree component.
+ *
+ * @property entries - List of files and directories to render
+ * @property basePath - Optional root path label shown above the tree
+ */
 interface FileTreeProps {
   entries: FileEntry[];
   basePath?: string;
 }
 
+/**
+ * Renders a sorted file/directory listing in a terminal-style card.
+ * Directories are sorted before files and displayed in accent-cyan;
+ * an "Empty directory" message is shown when `entries` is empty.
+ */
 export function FileTree({ entries, basePath }: FileTreeProps) {
   const sorted = [...entries].sort((a, b) => {
     if (a.type !== b.type) return a.type === "directory" ? -1 : 1;

@@ -50,11 +50,25 @@ function toTremorDonut(config: ChartConfig) {
   };
 }
 
+/**
+ * Props for the ChartWidget component.
+ *
+ * @property config - Chart.js-compatible chart configuration
+ * @property className - Optional extra CSS classes applied to the wrapper div
+ */
 interface ChartWidgetProps {
   config: ChartConfig;
   className?: string;
 }
 
+/**
+ * Renders a data chart using Tremor components. Accepts a Chart.js-compatible
+ * `ChartConfig` and renders the appropriate Tremor chart type:
+ *   - `bar` → BarChart, `line` → LineChart, `area` → AreaChart
+ *   - `pie` / `doughnut` → DonutChart
+ *
+ * Returns null if the chart data cannot be converted (e.g. empty labels/datasets).
+ */
 export function ChartWidget({ config, className }: ChartWidgetProps) {
   const colors = TREMOR_COLORS.slice(0, config.data.datasets.length);
 

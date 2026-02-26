@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "echo 'No tests configured' && exit 0",
     "test:usage": "tsx scripts/test-usage.ts",
     "postinstall": "npx agent-browser install"
   },

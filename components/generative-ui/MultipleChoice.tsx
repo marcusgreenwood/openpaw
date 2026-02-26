@@ -2,12 +2,23 @@
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Props for the MultipleChoice component.
+ *
+ * @property question - Prompt text displayed above the option buttons
+ * @property options - Array of choice strings rendered as clickable buttons
+ * @property onSelect - Callback invoked with the chosen option string
+ */
 interface MultipleChoiceProps {
   question: string;
   options: string[];
   onSelect: (option: string) => void;
 }
 
+/**
+ * Renders an inline multiple-choice selector used by the agent to collect user
+ * input during a conversation. Each option is presented as a cyan-styled button.
+ */
 export function MultipleChoice({ question, options, onSelect }: MultipleChoiceProps) {
   return (
     <div className="my-3 space-y-2">

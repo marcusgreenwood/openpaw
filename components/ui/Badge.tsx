@@ -1,11 +1,22 @@
 import { cn } from "@/lib/utils";
 
+/**
+ * Props for the Badge component.
+ *
+ * @property children - Badge label content
+ * @property variant - Color scheme (default: "default" = muted grey)
+ * @property className - Extra classes merged via `cn`
+ */
 interface BadgeProps {
   children: React.ReactNode;
   variant?: "default" | "success" | "error" | "warning" | "cyan" | "purple";
   className?: string;
 }
 
+/**
+ * Small inline label chip used to tag status, type, or category information.
+ * Renders as a monospace `<span>` styled with the chosen color variant.
+ */
 export function Badge({
   children,
   variant = "default",

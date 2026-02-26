@@ -22,6 +22,19 @@ interface CronJob {
   updatedAt: number;
 }
 
+/**
+ * Panel for managing scheduled cron jobs within the sidebar.
+ *
+ * Features:
+ *   - Lists all configured cron jobs fetched from `/api/crons`
+ *   - Inline edit form for name, schedule, type (command/prompt), and enabled state
+ *   - Delete button with a confirmation dialog
+ *   - "Run now" button that creates a new chat session pre-seeded with the job's
+ *     prompt or a bash run instruction, then switches to the Sessions tab
+ *
+ * Edit and delete operations POST/DELETE to `/api/crons` and re-fetch the list
+ * on completion.
+ */
 export function CronsPanel() {
   const {
     workspacePath,

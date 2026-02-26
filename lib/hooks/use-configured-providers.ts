@@ -9,6 +9,19 @@ interface ProvidersResponse {
   configuredProviders: string[];
 }
 
+/**
+ * Fetches the list of providers that have API keys configured and derives the
+ * subset of `ALL_MODELS` that can actually be used.
+ *
+ * Re-fetches automatically when the `openpaw-providers-updated` window event
+ * is fired (e.g. after saving a new API key in Settings).
+ *
+ * @returns
+ *   - `configuredProviders` — provider names with valid keys (e.g. ["anthropic", "openai"])
+ *   - `configuredModels` — ModelConfig entries filtered to configured providers
+ *   - `isLoading` — true until the first fetch completes
+ *   - `refetch` — manually triggers a fresh fetch from `/api/providers`
+ */
 export function useConfiguredProviders() {
   const [data, setData] = useState<ProvidersResponse | null>(null);
   const [loading, setLoading] = useState(true);

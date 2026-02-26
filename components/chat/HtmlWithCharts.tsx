@@ -75,6 +75,15 @@ function parseChartConfig(content: string): ChartJsConfig | null {
   }
 }
 
+/**
+ * Props for the HtmlWithCharts component.
+ *
+ * @property html - Sanitized HTML string to render via `dangerouslySetInnerHTML`
+ * @property chartConfigs - Serialized Chart.js config strings extracted before sanitization;
+ *   referenced by index via `data-chart-index` attributes in the HTML
+ * @property rawHtml - Original unsanitized HTML shown in the collapsible "View HTML" section
+ * @property className - Extra CSS classes applied to the chart container div
+ */
 interface HtmlWithChartsProps {
   html: string;
   chartConfigs?: string[];

@@ -3,6 +3,16 @@
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 
+/**
+ * Props for the TerminalOutput component.
+ *
+ * @property stdout - Captured standard output from the process
+ * @property stderr - Captured standard error from the process
+ * @property exitCode - Process exit code (0 = success, non-zero = failure)
+ * @property durationMs - Optional execution duration shown next to the exit badge
+ * @property language - Language label shown in the header (default: "bash")
+ * @property command - Optional command string shown inline for context
+ */
 interface TerminalOutputProps {
   stdout: string;
   stderr: string;
@@ -12,6 +22,12 @@ interface TerminalOutputProps {
   command?: string;
 }
 
+/**
+ * Renders the output of a shell command or code execution. Shows stdout in
+ * primary text, stderr in red (on failure) or muted (on success), and an exit
+ * code badge. Falls back to an italic "No output" message when both streams
+ * are empty.
+ */
 export function TerminalOutput({
   stdout,
   stderr,

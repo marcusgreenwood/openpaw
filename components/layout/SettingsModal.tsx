@@ -6,6 +6,12 @@ import { ChannelsPanel } from "@/components/channels/ChannelsPanel";
 import { ProviderKeysPanel } from "@/components/settings/ProviderKeysPanel";
 import { useSessionsStore } from "@/lib/store/sessions";
 
+/**
+ * Props for the SettingsModal component.
+ *
+ * @property open - Controls modal visibility
+ * @property onClose - Callback invoked when the user closes the modal (backdrop click, Escape, or × button)
+ */
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
@@ -13,6 +19,15 @@ interface SettingsModalProps {
 
 type SettingsTab = "workspace" | "providers" | "channels";
 
+/**
+ * Full-screen settings dialog with three tabs:
+ *   - **Workspace** — workspace directory path and max tool steps configuration
+ *   - **API Keys** — provider API key management via `ProviderKeysPanel`
+ *   - **Channels** — messaging channel credentials via `ChannelsPanel`
+ *
+ * Pressing Escape or clicking the backdrop closes the modal. Body scroll is
+ * locked while the modal is open. Returns null when `open` is false.
+ */
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
   const { workspacePath, setWorkspacePath, maxToolSteps, setMaxToolSteps } =

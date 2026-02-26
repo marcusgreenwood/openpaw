@@ -11,6 +11,21 @@ import {
   getVenvEnv,
 } from "@/lib/python-sandbox";
 
+/**
+ * Spawns a child process and returns stdout/stderr/exit information.
+ * Enforces a hard timeout by sending SIGKILL to the process group; falls back
+ * to killing the process directly if the group kill fails.
+ * Output is truncated at 50 KB (stdout) and 10 KB (stderr) to avoid flooding
+ * the context window.
+ *
+ * @param cmd - Executable to run (e.g. "node", "python3", "npx")
+ * @param args - Arguments passed to the executable
+ * @param opts.cwd - Working directory for the child process
+ * @param opts.env - Environment variables for the child process
+ * @param opts.timeout - Kill timeout in milliseconds
+ * @param opts.language - Language label included in the return value
+ * @returns Execution result with stdout, stderr, exitCode, timedOut, durationMs
+ */
 function runSpawn(
   cmd: string,
   args: string[],
@@ -83,6 +98,18 @@ function runSpawn(
   });
 }
 
+/**
+ * AI tool factory for code execution.
+ *
+ * Creates an AI SDK tool that writes a code snippet to a temporary file and
+ * executes it in an isolated subprocess. Python runs inside a per-workspace
+ * venv when one is available; TypeScript is executed via `tsx`; JavaScript
+ * runs with `node`. The temp directory is cleaned up unconditionally after
+ * execution.
+ *
+ * @param workspacePath - Absolute path used as the subprocess working directory
+ * @returns Vercel AI SDK tool definition with execute handler
+ */
 export const executeCode = (workspacePath: string) =>
   tool({
     description:

@@ -4,6 +4,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 
+/**
+ * Props for the Markdown component.
+ *
+ * @property children - Raw Markdown string to render
+ */
 interface MarkdownProps {
   children: string;
 }
@@ -118,6 +123,11 @@ const components: Components = {
   },
 };
 
+/**
+ * Renders a Markdown string using `react-markdown` with GitHub Flavored Markdown
+ * support (remark-gfm). All standard elements (headings, lists, tables, code
+ * blocks, links) are mapped to dark-themed Tailwind-styled components.
+ */
 export function Markdown({ children }: MarkdownProps) {
   return (
     <ReactMarkdown

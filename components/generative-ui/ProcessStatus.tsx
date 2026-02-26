@@ -2,6 +2,14 @@
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Props for the ProcessStatus component.
+ *
+ * @property tool - Tool name key (e.g. "executeBash", "readFile") used to look up label and icon
+ * @property status - Current status: "running" shows a spinner; "error" shows a red failure row
+ * @property input - Raw tool input object; relevant fields (command/path/language) are shown inline
+ * @property error - Error message displayed when status is "error"
+ */
 interface ProcessStatusProps {
   tool: string;
   status: "running" | "error";
@@ -27,6 +35,11 @@ const TOOL_ICONS: Record<string, string> = {
   executeCode: ">",
 };
 
+/**
+ * Inline status indicator for an in-progress or failed tool call.
+ * Shows a spinning indicator with the tool name while running; switches to a
+ * red error row with the failure message when status is "error".
+ */
 export function ProcessStatus({ tool, status, input, error }: ProcessStatusProps) {
   const label = TOOL_LABELS[tool] ?? tool;
   const icon = TOOL_ICONS[tool] ?? ">";

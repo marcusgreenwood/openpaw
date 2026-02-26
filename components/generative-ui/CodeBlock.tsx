@@ -4,6 +4,13 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 
+/**
+ * Props for the CodeBlock component.
+ *
+ * @property code - Raw source code string to display
+ * @property language - Explicit language label; auto-detected from filename when omitted
+ * @property filename - Optional filename shown in the header and used for language detection
+ */
 interface CodeBlockProps {
   code: string;
   language?: string;
@@ -37,6 +44,11 @@ function detectLanguage(filename?: string): string {
   return map[ext ?? ""] ?? "text";
 }
 
+/**
+ * Renders a syntax-highlighted code block with an optional filename header and
+ * a one-click copy button. Language is auto-detected from the file extension
+ * when not explicitly provided.
+ */
 export function CodeBlock({ code, language, filename }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const lang = language ?? detectLanguage(filename);

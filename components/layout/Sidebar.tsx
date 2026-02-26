@@ -36,6 +36,19 @@ function timeAgo(timestamp: number): string {
   });
 }
 
+/**
+ * Left sidebar (desktop) / bottom sheet (mobile) for the OpenPaw application.
+ *
+ * Contains three tabs:
+ *   - **Sessions** — lists all user and cron-generated chat sessions, plus a
+ *     "New Chat" button. Displays per-session token cost when available.
+ *   - **Crons** — delegates to `CronsPanel` for scheduled task management.
+ *   - **Skills** — lists installed skills and provides an install-by-name input.
+ *
+ * Syncs cron sessions from `/api/cron-sessions` on mount and whenever the
+ * `openpaw-cron-session-created` event is dispatched. Polls usage data for
+ * the active session every 5 seconds while the sessions tab is visible.
+ */
 export function Sidebar() {
   const {
     sessions,

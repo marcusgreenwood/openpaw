@@ -18,6 +18,22 @@ const MIME_TYPES: Record<string, string> = {
   ".js": "application/javascript",
 };
 
+/**
+ * GET /api/files/[...path]
+ *
+ * Serves static files from `<workspace>/public/` with MIME-type detection and
+ * a 1-hour cache header. Path traversal attacks are blocked by verifying the
+ * resolved path remains inside the public directory.
+ *
+ * Query params:
+ *   - `workspace` — override the workspace root (defaults to DEFAULT_WORKSPACE)
+ *
+ * Responds with:
+ *   - 200 + file bytes on success
+ *   - 400 if the path resolves to a directory
+ *   - 403 if the resolved path escapes the public dir (path traversal)
+ *   - 404 if the file does not exist
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }

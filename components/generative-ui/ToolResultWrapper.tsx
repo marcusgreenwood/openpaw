@@ -4,6 +4,15 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 
+/**
+ * Props for the ToolResultWrapper component.
+ *
+ * @property toolName - Tool identifier used to look up the icon (e.g. "executeBash")
+ * @property summary - One-line description shown in the collapsed header
+ * @property badge - Optional status badge displayed next to the summary
+ * @property children - Full tool result content rendered when the accordion is expanded
+ * @property defaultOpen - Whether the accordion starts in the open state (default: false)
+ */
 interface ToolResultWrapperProps {
   toolName: string;
   summary: string;
@@ -21,6 +30,11 @@ const TOOL_ICONS: Record<string, string> = {
   executeCode: "▷",
 };
 
+/**
+ * Collapsible accordion wrapper for tool call results.
+ * Always renders a compact summary header (tool icon + summary text + optional badge);
+ * the full result content is revealed when the user clicks to expand.
+ */
 export function ToolResultWrapper({
   toolName,
   summary,

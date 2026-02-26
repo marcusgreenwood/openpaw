@@ -6,6 +6,14 @@ import { PROVIDER_REGISTRY } from "@/lib/models/providers";
 import { useSessionsStore } from "@/lib/store/sessions";
 import { useConfiguredProviders } from "@/lib/hooks/use-configured-providers";
 
+/**
+ * Dropdown button for switching the active language model.
+ *
+ * Reads the current model from `useSessionsStore` and the list of usable models
+ * from `useConfiguredProviders` (only providers with configured API keys are shown).
+ * Closes the dropdown when the user clicks outside via a `mousedown` listener.
+ * Displays a "Configure API keys in Settings" prompt when no providers are configured.
+ */
 export function ModelSwitcher() {
   const { modelId, setModelId } = useSessionsStore();
   const { configuredModels } = useConfiguredProviders();

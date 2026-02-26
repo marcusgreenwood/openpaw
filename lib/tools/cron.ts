@@ -38,6 +38,16 @@ const cronSchema = z.object({
   enabled: z.boolean().optional().default(true),
 });
 
+/**
+ * AI tool factory that creates a new scheduled cron job.
+ *
+ * Supports two job types:
+ *   - `command` — executes a bash command in the workspace directory
+ *   - `prompt` — starts a new AI chat session with the supplied prompt each run
+ *
+ * @param workspacePath - Default workspace path used when none is specified in input
+ * @returns Vercel AI SDK tool definition
+ */
 export const createCronTool = (workspacePath: string) =>
   tool({
     description:
@@ -71,6 +81,12 @@ const updateCronSchema = cronSchema.extend({
   id: z.string().describe("ID of the cron job to update"),
 });
 
+/**
+ * AI tool factory that updates fields on an existing cron job by ID.
+ *
+ * @param workspacePath - Default workspace path fallback
+ * @returns Vercel AI SDK tool definition
+ */
 export const updateCronTool = (workspacePath: string) =>
   tool({
     description:
@@ -97,6 +113,11 @@ export const updateCronTool = (workspacePath: string) =>
     },
   });
 
+/**
+ * AI tool factory that permanently deletes a cron job by ID.
+ *
+ * @returns Vercel AI SDK tool definition
+ */
 export const deleteCronTool = () =>
   tool({
     description: "Delete a scheduled task. Use when the user wants to remove a cron job.",
@@ -114,6 +135,11 @@ export const deleteCronTool = () =>
     },
   });
 
+/**
+ * AI tool factory that lists all configured cron jobs.
+ *
+ * @returns Vercel AI SDK tool definition
+ */
 export const listCronsTool = () =>
   tool({
     description:

@@ -2,11 +2,22 @@
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Props for the Button component.
+ *
+ * Extends all native `<button>` HTML attributes plus:
+ * @property variant - Visual style: "primary" (cyan accent), "ghost" (subtle), "danger" (red)
+ * @property size - Dimension preset: "sm" | "md" | "lg"
+ */
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "primary" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
 }
 
+/**
+ * Base button component with three visual variants and three size presets.
+ * Disabled state is handled via Tailwind opacity/cursor utilities.
+ */
 export function Button({
   variant = "ghost",
   size = "md",

@@ -3,12 +3,24 @@
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/Badge";
 
+/**
+ * Props for the FileDiff component.
+ *
+ * @property path - File path displayed in the header
+ * @property before - Previous file contents; `null` indicates a newly created file
+ * @property after - New file contents to display
+ */
 interface FileDiffProps {
   path: string;
   before: string | null;
   after: string;
 }
 
+/**
+ * Renders a file diff view. When `before` is null the file is treated as newly
+ * created and all lines are shown as additions. When `before` is provided, the
+ * component shows the new file content with line numbers (simplified diff view).
+ */
 export function FileDiff({ path, before, after }: FileDiffProps) {
   const isNew = before === null;
   const beforeLines = before?.split("\n") ?? [];
