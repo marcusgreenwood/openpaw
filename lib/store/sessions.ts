@@ -5,6 +5,60 @@ import { persist } from "zustand/middleware";
 import type { Session } from "@/types";
 import { DEFAULT_MODEL_ID } from "@/lib/models/providers";
 import type { CronSessionData } from "@/lib/crons/cron-sessions";
+import { setPendingMessage } from "@/lib/store/pending-message";
+
+export interface SessionTemplate {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  systemPromptAddition?: string;
+  openingMessage?: string;
+  modelId?: string;
+}
+
+export const BUILT_IN_TEMPLATES: SessionTemplate[] = [
+  {
+    id: "builtin-code-review",
+    name: "Code Review",
+    description: "Review code changes and suggest improvements",
+    icon: "🔍",
+    openingMessage:
+      "Please review the following code and suggest improvements. I'll paste the code next.",
+  },
+  {
+    id: "builtin-debug",
+    name: "Debug Session",
+    description: "Diagnose and fix bugs step by step",
+    icon: "🐛",
+    openingMessage:
+      "Let's debug an issue together. Please describe the problem you're seeing.",
+  },
+  {
+    id: "builtin-docs",
+    name: "Documentation",
+    description: "Generate docs, READMEs, and comments",
+    icon: "📝",
+    openingMessage:
+      "I'll help you write documentation. What would you like to document?",
+  },
+  {
+    id: "builtin-project-setup",
+    name: "Project Setup",
+    description: "Bootstrap new projects and configure tools",
+    icon: "🚀",
+    openingMessage:
+      "Let's set up a new project. What kind of project are you building?",
+  },
+  {
+    id: "builtin-test-writer",
+    name: "Test Writer",
+    description: "Write unit and integration tests",
+    icon: "🧪",
+    openingMessage:
+      "I'll help you write tests. What code would you like to test?",
+  },
+];
 
 interface SessionsState {
   sessions: Session[];
@@ -14,6 +68,8 @@ interface SessionsState {
   workspacePath: string;
   maxToolSteps: number;
   sidebarOpen: boolean;
+  templates: SessionTemplate[];
+  toolApprovalMode: boolean;
 
   createSession: () => string;
   setActiveSession: (id: string) => void;
@@ -24,6 +80,10 @@ interface SessionsState {
   setWorkspacePath: (path: string) => void;
   setMaxToolSteps: (n: number) => void;
   setSidebarOpen: (open: boolean) => void;
+  setToolApprovalMode: (enabled: boolean) => void;
+  addTemplate: (template: SessionTemplate) => void;
+  deleteTemplate: (id: string) => void;
+  createSessionFromTemplate: (templateId: string) => string | null;
 }
 
 function generateId() {
@@ -40,6 +100,8 @@ export const useSessionsStore = create<SessionsState>()(
       workspacePath: "",
       maxToolSteps: 15,
       sidebarOpen: true,
+      templates: [],
+      toolApprovalMode: false,
 
       createSession: () => {
         const id = generateId();
@@ -90,6 +152,47 @@ export const useSessionsStore = create<SessionsState>()(
       setWorkspacePath: (workspacePath) => set({ workspacePath }),
       setMaxToolSteps: (maxToolSteps) => set({ maxToolSteps }),
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+      setToolApprovalMode: (toolApprovalMode) => set({ toolApprovalMode }),
+
+      addTemplate: (template) =>
+        set((state) => ({
+          templates: [...state.templates, template],
+        })),
+
+      deleteTemplate: (id) =>
+        set((state) => ({
+          templates: state.templates.filter((t) => t.id !== id),
+        })),
+
+      createSessionFromTemplate: (templateId) => {
+        const allTemplates = [
+          ...BUILT_IN_TEMPLATES,
+          ...get().templates,
+        ];
+        const template = allTemplates.find((t) => t.id === templateId);
+        if (!template) return null;
+
+        const id = generateId();
+        const session: Session = {
+          id,
+          title: template.name,
+          modelId: template.modelId ?? get().modelId,
+          workspacePath: get().workspacePath,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((state) => ({
+          sessions: [session, ...state.sessions],
+          activeSessionId: id,
+        }));
+
+        if (template.openingMessage) {
+          setPendingMessage(template.openingMessage, template.name);
+          window.dispatchEvent(new CustomEvent("openpaw-new-chat"));
+        }
+
+        return id;
+      },
     }),
     {
       name: "openpaw-sessions",
@@ -99,6 +202,8 @@ export const useSessionsStore = create<SessionsState>()(
         modelId: state.modelId,
         workspacePath: state.workspacePath,
         maxToolSteps: state.maxToolSteps,
+        templates: state.templates,
+        toolApprovalMode: state.toolApprovalMode,
       }),
     }
   )

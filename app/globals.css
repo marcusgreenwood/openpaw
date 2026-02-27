@@ -149,3 +149,64 @@ body {
 .prose-openpaw {
   max-width: 65ch;
 }
+
+/* ─── Light theme overrides ─── */
+
+[data-theme="light"] {
+  --color-bg-base: #ffffff;
+  --color-bg-elevated: #f8f9fa;
+  --color-bg-overlay: #f0f1f3;
+  --color-glass-surface: rgba(0, 0, 0, 0.03);
+  --color-glass-border: rgba(0, 0, 0, 0.08);
+  --color-glass-hover: rgba(0, 0, 0, 0.06);
+  --color-accent-cyan: #2563eb;
+  --color-accent-cyan-dim: rgba(37, 99, 235, 0.1);
+  --color-accent-purple: #7c3aed;
+  --color-accent-purple-dim: rgba(124, 58, 237, 0.1);
+  --color-text-primary: rgba(0, 0, 0, 0.87);
+  --color-text-secondary: rgba(0, 0, 0, 0.55);
+  --color-text-muted: rgba(0, 0, 0, 0.35);
+  --color-text-code: #1e40af;
+  --color-terminal-bg: #f5f5f7;
+  --color-terminal-green: #16a34a;
+  --color-terminal-red: #dc2626;
+  --color-terminal-yellow: #ca8a04;
+  --color-terminal-prompt: #2563eb;
+  --color-success: #16a34a;
+  --color-error: #dc2626;
+  --color-warning: #ca8a04;
+  --color-info: #2563eb;
+}
+
+[data-theme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .glass-card-hover:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .glass-bubble-user {
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+[data-theme="light"] .glass-bubble-assistant {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .terminal-block {
+  background: var(--color-terminal-bg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}

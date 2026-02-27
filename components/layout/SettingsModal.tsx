@@ -16,7 +16,7 @@ type SettingsTab = "workspace" | "providers" | "memory" | "channels";
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
-  const { workspacePath, setWorkspacePath, maxToolSteps, setMaxToolSteps } =
+  const { workspacePath, setWorkspacePath, maxToolSteps, setMaxToolSteps, toolApprovalMode, setToolApprovalMode } =
     useSessionsStore();
   const [tempPath, setTempPath] = useState(workspacePath);
   const [tempMaxSteps, setTempMaxSteps] = useState(String(maxToolSteps ?? 15));
@@ -200,6 +200,36 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   }}
                   className="w-full h-10 px-3 rounded-lg text-sm font-mono bg-white/5 border border-white/10 text-text-primary outline-none focus:border-accent-cyan/40"
                 />
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm font-medium text-text-secondary mb-1">
+                      Tool Approval Mode
+                    </label>
+                    <p className="text-xs text-text-muted">
+                      Require manual approval before executing tools like bash commands and file writes.
+                    </p>
+                  </div>
+                  <button
+                    role="switch"
+                    aria-checked={toolApprovalMode}
+                    onClick={() => setToolApprovalMode(!toolApprovalMode)}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer",
+                      toolApprovalMode
+                        ? "bg-amber-500/60"
+                        : "bg-white/10"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform",
+                        toolApprovalMode ? "translate-x-6" : "translate-x-1"
+                      )}
+                    />
+                  </button>
+                </div>
               </div>
             </div>
           )}

@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import type { UIMessage } from "ai";
 import { MessageBubble } from "./MessageBubble";
+import { TemplatesGrid } from "@/components/layout/TemplatesGrid";
 
 interface MessageListProps {
   messages: UIMessage[];
@@ -32,6 +33,7 @@ function lastMessageEndsWithToolCalls(messages: UIMessage[]): boolean {
   return true;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect, onContinue }: MessageListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -100,22 +102,7 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
             AI agent with full system access. Execute commands, write
             code, manage files — all from a single chat interface.
           </p>
-          <div className="flex flex-wrap justify-center gap-2 mt-6">
-            {[
-              "List files in the workspace",
-              "Create a React component",
-              "Find a skill for testing",
-              "Write a Python script",
-            ].map((suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => onSuggestion?.(suggestion)}
-                className="text-xs text-text-muted border border-white/8 rounded-full px-3 py-1.5 hover:bg-white/5 hover:text-text-secondary transition-colors cursor-pointer"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
+          <TemplatesGrid />
         </div>
       </div>
     );

@@ -10,6 +10,8 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CronsPanel } from "@/components/layout/CronsPanel";
+import { ToolAuditLog } from "@/components/layout/ToolAuditLog";
+import { useAuditLogStore } from "@/lib/store/audit-log";
 import type { Skill } from "@/types";
 
 interface UsageSummary {
@@ -52,7 +54,8 @@ export function Sidebar() {
 
   const [skills, setSkills] = useState<Skill[]>([]);
   const [cronsCount, setCronsCount] = useState(0);
-  const [tab, setTab] = useState<"sessions" | "crons" | "skills">("sessions");
+  const [tab, setTab] = useState<"sessions" | "crons" | "skills" | "audit">("sessions");
+  const auditEntryCount = useAuditLogStore((s) => s.entries.length);
 
   useEffect(() => {
     const onSwitch = () => setTab("sessions");
@@ -270,6 +273,22 @@ export function Sidebar() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setTab("audit")}
+              className={cn(
+                "flex-1 text-xs py-1.5 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1.5",
+                tab === "audit"
+                  ? "bg-white/8 text-text-primary"
+                  : "text-text-muted hover:text-text-secondary"
+              )}
+            >
+              Audit
+              {auditEntryCount > 0 && (
+                <span className="text-[10px] opacity-60">
+                  {auditEntryCount}
+                </span>
+              )}
+            </button>
           </div>
 
           {tab === "sessions" ? (
@@ -341,6 +360,8 @@ export function Sidebar() {
             </div>
           ) : tab === "crons" ? (
             <CronsPanel />
+          ) : tab === "audit" ? (
+            <ToolAuditLog />
           ) : (
             <div className="flex-1 overflow-y-auto space-y-2">
               {/* Install skill */}

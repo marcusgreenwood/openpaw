@@ -18,15 +18,37 @@ export const metadata: Metadata = {
     "AI agent with full system access. Execute commands, write code, manage files.",
 };
 
+const themeScript = `
+(function(){
+  try {
+    var stored = JSON.parse(localStorage.getItem('openpaw-theme') || '{}');
+    var theme = (stored.state && stored.state.theme) || 'dark';
+    var resolved = theme;
+    if (theme === 'system') {
+      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', resolved);
+    if (resolved === 'dark') document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  } catch(e) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.classList.add('dark');
+  }
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="dark" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} bg-bg-base text-text-primary min-h-screen overflow-hidden`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen overflow-hidden`}
       >
         {children}
       </body>
