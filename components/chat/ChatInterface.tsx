@@ -21,6 +21,7 @@ import {
 } from "@/lib/chat/client-messages";
 import { useBranchStore } from "@/lib/store/branches";
 import { BranchSelector } from "./BranchSelector";
+import { useCatReactions } from "@/lib/hooks/useCatReactions";
 
 export { clearSessionMessages } from "@/lib/chat/client-messages";
 
@@ -138,6 +139,8 @@ export function ChatInterface() {
     transport,
     messages: initialMessages,
   });
+
+  useCatReactions(status, messages.length, !!error);
 
   // Send pending message from command palette (cmd+k) or cron run now
   useEffect(() => {

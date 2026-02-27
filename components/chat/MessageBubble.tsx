@@ -12,6 +12,7 @@ import { ProcessStatus } from "@/components/generative-ui/ProcessStatus";
 import { ToolResultWrapper } from "@/components/generative-ui/ToolResultWrapper";
 import { MultipleChoice } from "@/components/generative-ui/MultipleChoice";
 import { useSessionsStore } from "@/lib/store/sessions";
+import { CatFace } from "@/components/cat/CatFace";
 
 interface MessageBubbleProps {
   message: UIMessage;
@@ -214,6 +215,11 @@ export function MessageBubble({ message, onChoiceSelect, onFork }: MessageBubble
 
   return (
     <div className={cn("group/msg relative flex mb-4", isUser ? "justify-end" : "justify-start")}>
+      {!isUser && (
+        <div className="shrink-0 mr-2 mt-1">
+          <CatFace size={24} />
+        </div>
+      )}
       <div
         className={cn(
           "relative max-w-3xl max-[768px]:max-w-[85vw]",

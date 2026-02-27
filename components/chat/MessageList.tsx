@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import type { UIMessage } from "ai";
 import { MessageBubble } from "./MessageBubble";
+import { CatFace } from "@/components/cat/CatFace";
 import { TemplatesGrid } from "@/components/layout/TemplatesGrid";
 
 interface MessageListProps {
@@ -84,19 +85,7 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center space-y-4 px-6">
           <div className="flex items-center justify-center gap-3">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="shrink-0"
-              aria-hidden
-            >
-              <ellipse cx="12" cy="18" rx="5" ry="3.5" fill="currentColor" className="text-accent-cyan opacity-90" />
-              <circle cx="7.5" cy="10" r="2.2" fill="currentColor" className="text-accent-cyan" />
-              <circle cx="12" cy="7" r="2.2" fill="currentColor" className="text-accent-cyan" />
-              <circle cx="16.5" cy="10" r="2.2" fill="currentColor" className="text-accent-cyan" />
-            </svg>
+            <CatFace size={52} />
             <h1 className="text-4xl font-bold gradient-text">OpenPaw</h1>
           </div>
           <p className="text-text-secondary text-sm max-w-md mx-auto">
