@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CronsPanel } from "@/components/layout/CronsPanel";
 import { ToolAuditLog } from "@/components/layout/ToolAuditLog";
+import { GitStatus } from "@/components/layout/GitStatus";
+import { SkillMarketplace } from "@/components/skills/SkillMarketplace";
 import { useAuditLogStore } from "@/lib/store/audit-log";
 import type { Skill } from "@/types";
 
@@ -64,6 +66,7 @@ export function Sidebar() {
   }, []);
   const [installInput, setInstallInput] = useState("");
   const [installing, setInstalling] = useState(false);
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [usageBySession, setUsageBySession] = useState<Record<string, UsageSummary>>({});
 
   useEffect(() => {
@@ -292,71 +295,78 @@ export function Sidebar() {
           </div>
 
           {tab === "sessions" ? (
-            <div className="flex-1 overflow-y-auto space-y-1">
-              <Button
-                variant="primary"
-                size="sm"
-                className="w-full mb-3"
-                onClick={() => {
-                  createSession();
-                  window.dispatchEvent(new CustomEvent("openpaw-new-chat"));
-                }}
-              >
-                + New Chat
-              </Button>
-
-              {allSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={cn(
-                    "group flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
-                    session.id === activeSessionId
-                      ? "bg-accent-cyan/10 text-accent-cyan"
-                      : "text-text-secondary hover:bg-white/5"
-                  )}
-                  onClick={() => setActiveSession(session.id)}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto space-y-1">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full mb-3"
+                  onClick={() => {
+                    createSession();
+                    window.dispatchEvent(new CustomEvent("openpaw-new-chat"));
+                  }}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="block truncate">{session.title}</span>
-                      {session._source === "cron" && (
-                        <Badge variant="default" className="shrink-0 text-[9px]">
-                          cron
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-text-muted block">
-                      {timeAgo(session.updatedAt ?? 0)}
-                    </span>
-                    {usageBySession[session.id]?.requestCount ? (
-                      <span className="text-[10px] text-accent-cyan/90 font-mono">
-                        ${usageBySession[session.id].totalCostUsd.toFixed(4)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      clearSessionMessages(session.id);
-                      if (session._source === "cron") {
-                        fetch(`/api/cron-sessions?sessionId=${encodeURIComponent(session.id)}`, {
-                          method: "DELETE",
-                        }).catch(() => {});
-                      }
-                      deleteSession(session.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-opacity cursor-pointer text-xs shrink-0"
-                  >
-                    x
-                  </button>
-                </div>
-              ))}
+                  + New Chat
+                </Button>
 
-              {allSessions.length === 0 && (
-                <p className="text-text-muted text-xs text-center py-4">
-                  No sessions yet
-                </p>
-              )}
+                {allSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className={cn(
+                      "group flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
+                      session.id === activeSessionId
+                        ? "bg-accent-cyan/10 text-accent-cyan"
+                        : "text-text-secondary hover:bg-white/5"
+                    )}
+                    onClick={() => setActiveSession(session.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="block truncate">{session.title}</span>
+                        {session._source === "cron" && (
+                          <Badge variant="default" className="shrink-0 text-[9px]">
+                            cron
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-text-muted block">
+                        {timeAgo(session.updatedAt ?? 0)}
+                      </span>
+                      {usageBySession[session.id]?.requestCount ? (
+                        <span className="text-[10px] text-accent-cyan/90 font-mono">
+                          ${usageBySession[session.id].totalCostUsd.toFixed(4)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearSessionMessages(session.id);
+                        if (session._source === "cron") {
+                          fetch(`/api/cron-sessions?sessionId=${encodeURIComponent(session.id)}`, {
+                            method: "DELETE",
+                          }).catch(() => {});
+                        }
+                        deleteSession(session.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-opacity cursor-pointer text-xs shrink-0"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+
+                {allSessions.length === 0 && (
+                  <p className="text-text-muted text-xs text-center py-4">
+                    No sessions yet
+                  </p>
+                )}
+              </div>
+
+              {/* Git status at bottom of sessions tab */}
+              <div className="shrink-0 border-t border-white/6 mt-2 pt-1">
+                <GitStatus />
+              </div>
             </div>
           ) : tab === "crons" ? (
             <CronsPanel />

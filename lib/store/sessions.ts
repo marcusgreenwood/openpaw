@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Session } from "@/types";
+import type { Session, ProjectProfile } from "@/types";
 import { DEFAULT_MODEL_ID } from "@/lib/models/providers";
 import type { CronSessionData } from "@/lib/crons/cron-sessions";
 import { setPendingMessage } from "@/lib/store/pending-message";
@@ -70,6 +70,8 @@ interface SessionsState {
   sidebarOpen: boolean;
   templates: SessionTemplate[];
   toolApprovalMode: boolean;
+  projects: ProjectProfile[];
+  activeProjectId: string | null;
 
   createSession: () => string;
   setActiveSession: (id: string) => void;
@@ -84,6 +86,10 @@ interface SessionsState {
   addTemplate: (template: SessionTemplate) => void;
   deleteTemplate: (id: string) => void;
   createSessionFromTemplate: (templateId: string) => string | null;
+  addProject: (project: Omit<ProjectProfile, "id" | "createdAt">) => string;
+  deleteProject: (id: string) => void;
+  updateProject: (id: string, updates: Partial<Omit<ProjectProfile, "id" | "createdAt">>) => void;
+  setActiveProject: (id: string | null) => void;
 }
 
 function generateId() {
@@ -102,6 +108,8 @@ export const useSessionsStore = create<SessionsState>()(
       sidebarOpen: true,
       templates: [],
       toolApprovalMode: false,
+      projects: [],
+      activeProjectId: null,
 
       createSession: () => {
         const id = generateId();
@@ -193,6 +201,50 @@ export const useSessionsStore = create<SessionsState>()(
 
         return id;
       },
+
+      addProject: (project) => {
+        const id = generateId();
+        const newProject: ProjectProfile = {
+          ...project,
+          id,
+          createdAt: Date.now(),
+        };
+        set((state) => ({
+          projects: [...state.projects, newProject],
+        }));
+        return id;
+      },
+
+      deleteProject: (id) =>
+        set((state) => ({
+          projects: state.projects.filter((p) => p.id !== id),
+          activeProjectId: state.activeProjectId === id ? null : state.activeProjectId,
+        })),
+
+      updateProject: (id, updates) =>
+        set((state) => ({
+          projects: state.projects.map((p) =>
+            p.id === id ? { ...p, ...updates } : p
+          ),
+        })),
+
+      setActiveProject: (id) => {
+        const state = get();
+        if (id === null) {
+          set({ activeProjectId: null });
+          return;
+        }
+        const project = state.projects.find((p) => p.id === id);
+        if (!project) return;
+        const updates: Partial<SessionsState> = {
+          activeProjectId: id,
+          workspacePath: project.workspacePath,
+        };
+        if (project.preferredModelId) {
+          updates.modelId = project.preferredModelId;
+        }
+        set(updates);
+      },
     }),
     {
       name: "openpaw-sessions",
@@ -204,6 +256,8 @@ export const useSessionsStore = create<SessionsState>()(
         maxToolSteps: state.maxToolSteps,
         templates: state.templates,
         toolApprovalMode: state.toolApprovalMode,
+        projects: state.projects,
+        activeProjectId: state.activeProjectId,
       }),
     }
   )

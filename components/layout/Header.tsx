@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { ModelSwitcher } from "./ModelSwitcher";
+import { ProjectSwitcher } from "./ProjectSwitcher";
 import { SettingsModal } from "./SettingsModal";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -97,6 +98,7 @@ export function Header({ onOpenCommandPalette }: HeaderProps) {
           <span className="font-mono">Cmd+K</span>
         </button>
 
+        <ProjectSwitcher />
         <ModelSwitcher />
       </div>
     </header>
