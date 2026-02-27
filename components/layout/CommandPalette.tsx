@@ -5,6 +5,7 @@ import { Command } from "cmdk";
 import { cn } from "@/lib/utils";
 import { useConfiguredProviders } from "@/lib/hooks/use-configured-providers";
 import { useSessionsStore } from "@/lib/store/sessions";
+import type { SessionTemplate } from "@/lib/store/sessions";
 import { setPendingMessage } from "@/lib/store/pending-message";
 
 interface CommandPaletteProps {
@@ -17,10 +18,12 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
     sessions,
     cronSessions,
     modelId,
+    activeSessionId,
     setModelId,
     setActiveSession,
     createSession,
     setWorkspacePath,
+    addTemplate,
   } = useSessionsStore();
 
   const allSessions = [
@@ -197,6 +200,50 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                 className="[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-text-muted [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5"
               >
                 <Command.Item
+                  value="compare models side by side"
+                  onSelect={() => {
+                    onOpenChange(false);
+                    window.dispatchEvent(new CustomEvent("openpaw-open-compare"));
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm cursor-pointer",
+                    "text-text-secondary data-[selected=true]:bg-accent-cyan/10 data-[selected=true]:text-accent-cyan"
+                  )}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18" />
+                  </svg>
+                  Compare Models
+                </Command.Item>
+                <Command.Item
+                  value="browse skill marketplace"
+                  onSelect={() => {
+                    onOpenChange(false);
+                    window.dispatchEvent(new CustomEvent("openpaw-open-marketplace"));
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm cursor-pointer",
+                    "text-text-secondary data-[selected=true]:bg-accent-cyan/10 data-[selected=true]:text-accent-cyan"
+                  )}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  Browse Skill Marketplace
+                </Command.Item>
+                <Command.Item
                   value="set workspace directory"
                   onSelect={() => {
                     const path = prompt("Enter workspace path:");
@@ -220,6 +267,51 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                     <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                   </svg>
                   Set Workspace Directory
+                </Command.Item>
+                <Command.Item
+                  value="save current chat as template"
+                  onSelect={() => {
+                    const activeSession = sessions.find(
+                      (s) => s.id === activeSessionId
+                    );
+                    const name = prompt(
+                      "Template name:",
+                      activeSession?.title ?? "My Template"
+                    );
+                    if (!name) {
+                      onOpenChange(false);
+                      return;
+                    }
+                    const description =
+                      prompt("Short description:") ?? "";
+                    const icon = prompt("Emoji icon:", "💬") ?? "💬";
+                    const template: SessionTemplate = {
+                      id:
+                        "user-" +
+                        Date.now().toString(36) +
+                        Math.random().toString(36).slice(2, 6),
+                      name,
+                      description,
+                      icon,
+                    };
+                    addTemplate(template);
+                    onOpenChange(false);
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm cursor-pointer",
+                    "text-text-secondary data-[selected=true]:bg-accent-cyan/10 data-[selected=true]:text-accent-cyan"
+                  )}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
+                  </svg>
+                  Save Current Chat as Template
                 </Command.Item>
               </Command.Group>
             </Command.List>

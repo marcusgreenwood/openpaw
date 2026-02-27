@@ -10,6 +10,12 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CronsPanel } from "@/components/layout/CronsPanel";
+import { ToolAuditLog } from "@/components/layout/ToolAuditLog";
+import { GitStatus } from "@/components/layout/GitStatus";
+import { SkillMarketplace } from "@/components/skills/SkillMarketplace";
+import { WorkflowsPanel } from "@/components/workflows/WorkflowsPanel";
+import { useAuditLogStore } from "@/lib/store/audit-log";
+import { useWorkflowsStore, BUILT_IN_WORKFLOWS } from "@/lib/store/workflows";
 import type { Skill } from "@/types";
 
 interface UsageSummary {
@@ -52,7 +58,9 @@ export function Sidebar() {
 
   const [skills, setSkills] = useState<Skill[]>([]);
   const [cronsCount, setCronsCount] = useState(0);
-  const [tab, setTab] = useState<"sessions" | "crons" | "skills">("sessions");
+  const [tab, setTab] = useState<"sessions" | "crons" | "workflows" | "skills" | "audit">("sessions");
+  const auditEntryCount = useAuditLogStore((s) => s.entries.length);
+  const workflowCount = useWorkflowsStore((s) => s.workflows.length) + BUILT_IN_WORKFLOWS.length;
 
   useEffect(() => {
     const onSwitch = () => setTab("sessions");
@@ -61,7 +69,10 @@ export function Sidebar() {
   }, []);
   const [installInput, setInstallInput] = useState("");
   const [installing, setInstalling] = useState(false);
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [usageBySession, setUsageBySession] = useState<Record<string, UsageSummary>>({});
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [shareToast, setShareToast] = useState<string | null>(null);
 
   useEffect(() => {
     const url = workspacePath
@@ -161,6 +172,22 @@ export function Sidebar() {
     return () => clearInterval(interval);
   }, [tab, activeSessionId]);
 
+  const refreshSkills = useCallback(() => {
+    const url = workspacePath
+      ? `/api/skills?workspace=${encodeURIComponent(workspacePath)}`
+      : "/api/skills";
+    fetch(url)
+      .then((r) => r.json())
+      .then((d) => setSkills(d.skills ?? []))
+      .catch(() => {});
+  }, [workspacePath]);
+
+  useEffect(() => {
+    const onOpen = () => setMarketplaceOpen(true);
+    window.addEventListener("openpaw-open-marketplace", onOpen);
+    return () => window.removeEventListener("openpaw-open-marketplace", onOpen);
+  }, []);
+
   const handleInstallSkill = async () => {
     if (!installInput.trim()) return;
     setInstalling(true);
@@ -183,6 +210,31 @@ export function Sidebar() {
       }
     } finally {
       setInstalling(false);
+    }
+  };
+
+  const handleShareSession = async (sessionId: string) => {
+    setSharingId(sessionId);
+    try {
+      const { loadMessages: loadMsgs } = await import("@/lib/chat/client-messages");
+      const messages = loadMsgs(sessionId);
+      const res = await fetch("/api/sessions/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, messages }),
+      });
+      const data = await res.json();
+      if (data.shareUrl) {
+        const fullUrl = `${window.location.origin}${data.shareUrl}`;
+        await navigator.clipboard.writeText(fullUrl);
+        setShareToast("Link copied!");
+        setTimeout(() => setShareToast(null), 2500);
+      }
+    } catch {
+      setShareToast("Failed to share");
+      setTimeout(() => setShareToast(null), 2500);
+    } finally {
+      setSharingId(null);
     }
   };
 
@@ -255,6 +307,22 @@ export function Sidebar() {
               )}
             </button>
             <button
+              onClick={() => setTab("workflows")}
+              className={cn(
+                "flex-1 text-xs py-1.5 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1.5",
+                tab === "workflows"
+                  ? "bg-white/8 text-text-primary"
+                  : "text-text-muted hover:text-text-secondary"
+              )}
+            >
+              Flows
+              {workflowCount > 0 && (
+                <span className="text-[10px] opacity-60">
+                  {workflowCount}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setTab("skills")}
               className={cn(
                 "flex-1 text-xs py-1.5 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1.5",
@@ -270,79 +338,141 @@ export function Sidebar() {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setTab("audit")}
+              className={cn(
+                "flex-1 text-xs py-1.5 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1.5",
+                tab === "audit"
+                  ? "bg-white/8 text-text-primary"
+                  : "text-text-muted hover:text-text-secondary"
+              )}
+            >
+              Audit
+              {auditEntryCount > 0 && (
+                <span className="text-[10px] opacity-60">
+                  {auditEntryCount}
+                </span>
+              )}
+            </button>
           </div>
 
           {tab === "sessions" ? (
-            <div className="flex-1 overflow-y-auto space-y-1">
-              <Button
-                variant="primary"
-                size="sm"
-                className="w-full mb-3"
-                onClick={() => {
-                  createSession();
-                  window.dispatchEvent(new CustomEvent("openpaw-new-chat"));
-                }}
-              >
-                + New Chat
-              </Button>
-
-              {allSessions.map((session) => (
-                <div
-                  key={session.id}
-                  className={cn(
-                    "group flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
-                    session.id === activeSessionId
-                      ? "bg-accent-cyan/10 text-accent-cyan"
-                      : "text-text-secondary hover:bg-white/5"
-                  )}
-                  onClick={() => setActiveSession(session.id)}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto space-y-1">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full mb-3"
+                  onClick={() => {
+                    createSession();
+                    window.dispatchEvent(new CustomEvent("openpaw-new-chat"));
+                  }}
                 >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="block truncate">{session.title}</span>
-                      {session._source === "cron" && (
-                        <Badge variant="default" className="shrink-0 text-[9px]">
-                          cron
-                        </Badge>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-text-muted block">
-                      {timeAgo(session.updatedAt ?? 0)}
-                    </span>
-                    {usageBySession[session.id]?.requestCount ? (
-                      <span className="text-[10px] text-accent-cyan/90 font-mono">
-                        ${usageBySession[session.id].totalCostUsd.toFixed(4)}
-                      </span>
-                    ) : null}
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      clearSessionMessages(session.id);
-                      if (session._source === "cron") {
-                        fetch(`/api/cron-sessions?sessionId=${encodeURIComponent(session.id)}`, {
-                          method: "DELETE",
-                        }).catch(() => {});
-                      }
-                      deleteSession(session.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-opacity cursor-pointer text-xs shrink-0"
-                  >
-                    x
-                  </button>
-                </div>
-              ))}
+                  + New Chat
+                </Button>
 
-              {allSessions.length === 0 && (
-                <p className="text-text-muted text-xs text-center py-4">
-                  No sessions yet
-                </p>
-              )}
+                {allSessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className={cn(
+                      "group flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer",
+                      session.id === activeSessionId
+                        ? "bg-accent-cyan/10 text-accent-cyan"
+                        : "text-text-secondary hover:bg-white/5"
+                    )}
+                    onClick={() => setActiveSession(session.id)}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="block truncate">{session.title}</span>
+                        {session._source === "cron" && (
+                          <Badge variant="default" className="shrink-0 text-[9px]">
+                            cron
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-text-muted block">
+                        {timeAgo(session.updatedAt ?? 0)}
+                      </span>
+                      {usageBySession[session.id]?.requestCount ? (
+                        <span className="text-[10px] text-accent-cyan/90 font-mono">
+                          ${usageBySession[session.id].totalCostUsd.toFixed(4)}
+                        </span>
+                      ) : null}
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShareSession(session.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent-cyan transition-opacity cursor-pointer text-xs shrink-0"
+                      title="Share session"
+                      disabled={sharingId === session.id}
+                    >
+                      {sharingId === session.id ? (
+                        <span className="animate-pulse">...</span>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="18" cy="5" r="3" />
+                          <circle cx="6" cy="12" r="3" />
+                          <circle cx="18" cy="19" r="3" />
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        clearSessionMessages(session.id);
+                        if (session._source === "cron") {
+                          fetch(`/api/cron-sessions?sessionId=${encodeURIComponent(session.id)}`, {
+                            method: "DELETE",
+                          }).catch(() => {});
+                        }
+                        deleteSession(session.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-opacity cursor-pointer text-xs shrink-0"
+                    >
+                      x
+                    </button>
+                  </div>
+                ))}
+
+                {allSessions.length === 0 && (
+                  <p className="text-text-muted text-xs text-center py-4">
+                    No sessions yet
+                  </p>
+                )}
+              </div>
+
+              {/* Git status at bottom of sessions tab */}
+              <div className="shrink-0 border-t border-white/6 mt-2 pt-1">
+                <GitStatus />
+              </div>
             </div>
           ) : tab === "crons" ? (
             <CronsPanel />
+          ) : tab === "workflows" ? (
+            <WorkflowsPanel />
+          ) : tab === "audit" ? (
+            <ToolAuditLog />
           ) : (
             <div className="flex-1 overflow-y-auto space-y-2">
+              {/* Browse Skills button */}
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full mb-2"
+                onClick={() => setMarketplaceOpen(true)}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+                Browse Skills
+              </Button>
+
               {/* Install skill */}
               <div className="flex gap-2 mb-3">
                 <input
@@ -398,6 +528,22 @@ export function Sidebar() {
           )}
         </div>
       </aside>
+
+      <SkillMarketplace
+        open={marketplaceOpen}
+        onOpenChange={setMarketplaceOpen}
+        installedSkills={skills}
+        onSkillInstalled={refreshSkills}
+      />
+
+      {/* Share toast */}
+      {shareToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+          <div className="bg-accent-cyan/90 text-white text-sm px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm">
+            {shareToast}
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -3,6 +3,8 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import type { UIMessage } from "ai";
 import { MessageBubble } from "./MessageBubble";
+import { CatFace } from "@/components/cat/CatFace";
+import { TemplatesGrid } from "@/components/layout/TemplatesGrid";
 
 interface MessageListProps {
   messages: UIMessage[];
@@ -11,6 +13,7 @@ interface MessageListProps {
   onSuggestion?: (text: string) => void;
   onChoiceSelect?: (option: string) => void;
   onContinue?: () => void;
+  onFork?: (messageId: string) => void;
 }
 
 /**
@@ -32,7 +35,8 @@ function lastMessageEndsWithToolCalls(messages: UIMessage[]): boolean {
   return true;
 }
 
-export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect, onContinue }: MessageListProps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect, onContinue, onFork }: MessageListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -81,41 +85,14 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center space-y-4 px-6">
           <div className="flex items-center justify-center gap-3">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              className="shrink-0"
-              aria-hidden
-            >
-              <ellipse cx="12" cy="18" rx="5" ry="3.5" fill="currentColor" className="text-accent-cyan opacity-90" />
-              <circle cx="7.5" cy="10" r="2.2" fill="currentColor" className="text-accent-cyan" />
-              <circle cx="12" cy="7" r="2.2" fill="currentColor" className="text-accent-cyan" />
-              <circle cx="16.5" cy="10" r="2.2" fill="currentColor" className="text-accent-cyan" />
-            </svg>
+            <CatFace size={52} />
             <h1 className="text-4xl font-bold gradient-text">OpenPaw</h1>
           </div>
           <p className="text-text-secondary text-sm max-w-md mx-auto">
             AI agent with full system access. Execute commands, write
             code, manage files — all from a single chat interface.
           </p>
-          <div className="flex flex-wrap justify-center gap-2 mt-6">
-            {[
-              "List files in the workspace",
-              "Create a React component",
-              "Find a skill for testing",
-              "Write a Python script",
-            ].map((suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => onSuggestion?.(suggestion)}
-                className="text-xs text-text-muted border border-white/8 rounded-full px-3 py-1.5 hover:bg-white/5 hover:text-text-secondary transition-colors cursor-pointer"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
+          <TemplatesGrid />
         </div>
       </div>
     );
@@ -141,7 +118,7 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
     >
       <div className="max-w-4xl mx-auto">
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} onChoiceSelect={onChoiceSelect} />
+          <MessageBubble key={message.id} message={message} onChoiceSelect={onChoiceSelect} onFork={onFork} />
         ))}
 
         {/* Waiting indicator — only when we haven't started receiving yet */}

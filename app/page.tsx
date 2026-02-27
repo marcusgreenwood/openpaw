@@ -5,6 +5,7 @@ import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { CommandPalette } from "@/components/layout/CommandPalette";
+import { CatAvatar } from "@/components/cat/CatAvatar";
 
 export default function Home() {
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -39,6 +40,7 @@ export default function Home() {
       </div>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <CatAvatar />
     </div>
   );
 }

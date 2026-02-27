@@ -24,3 +24,13 @@ export interface Session {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface ProjectProfile {
+  id: string;
+  name: string;
+  icon: string;
+  workspacePath: string;
+  preferredModelId?: string;
+  systemPromptAddition?: string;
+  createdAt: number;
+}

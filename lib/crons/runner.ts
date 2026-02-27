@@ -47,6 +47,7 @@ export async function runCronById(
     result = { id: job.id, name: job.name, ...r };
   }
   await updateCron(job.id, { lastRunAt: Date.now() });
+  postCronNotification(result);
   return result;
 }
 
@@ -85,6 +86,10 @@ export async function runDueCrons(
       results.push({ id: job.id, name: job.name, ...result });
     }
     await updateCron(job.id, { lastRunAt: now });
+  }
+
+  for (const r of results) {
+    postCronNotification(r);
   }
 
   return results;
@@ -137,6 +142,32 @@ async function executeCronPrompt(
   } catch (err) {
     return { success: false, error: String(err), sessionId };
   }
+}
+
+function postCronNotification(result: CronRunResult): void {
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : `http://localhost:${process.env.PORT || 3000}`;
+
+  const body = {
+    type: result.success ? "cron_success" : "cron_failure",
+    title: result.success
+      ? `Cron "${result.name}" completed`
+      : `Cron "${result.name}" failed`,
+    message: result.success
+      ? result.stdout?.slice(0, 200) || "Completed successfully"
+      : result.error?.slice(0, 200) || result.stderr?.slice(0, 200) || "Unknown error",
+    cronJobName: result.name,
+    sessionId: result.sessionId,
+  };
+
+  fetch(`${baseUrl}/api/notifications`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    // Notification delivery is best-effort
+  });
 }
 
 async function executeCronCommand(
