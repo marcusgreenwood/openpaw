@@ -88,9 +88,12 @@ export function NotificationBell() {
   }, [notifications, addNotification]);
 
   useEffect(() => {
-    pollNotifications();
+    const timer = setTimeout(pollNotifications, 100);
     const interval = setInterval(pollNotifications, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [pollNotifications]);
 
   useEffect(() => {
