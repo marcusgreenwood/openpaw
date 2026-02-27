@@ -5,8 +5,13 @@ import { DefaultChatTransport, type UIMessage } from "ai";
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { MessageList } from "./MessageList";
 import { InputBar } from "./InputBar";
+import { FileDropZone } from "./FileDropZone";
+import { CompareMode } from "./CompareMode";
+import { ModelPickerDialog } from "./ModelPickerDialog";
 import { useSessionsStore } from "@/lib/store/sessions";
+import { useCompareStore, type CompareResult } from "@/lib/store/compare";
 import { consumePendingMessage } from "@/lib/store/pending-message";
+import { useFileAttachments } from "@/lib/hooks/useFileAttachments";
 import {
   loadMessages,
   saveMessages,
@@ -52,6 +57,38 @@ export function ChatInterface() {
     updateSessionTitle,
   } = useSessionsStore();
   const [input, setInput] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const compareActive = useCompareStore((s) => s.active);
+  const compareActivate = useCompareStore((s) => s.activate);
+  const compareSetResults = useCompareStore((s) => s.setResults);
+  const compareDeactivate = useCompareStore((s) => s.deactivate);
+
+  // Listen for compare trigger from command palette
+  useEffect(() => {
+    const handler = () => setPickerOpen(true);
+    window.addEventListener("openpaw-open-compare", handler);
+    return () => window.removeEventListener("openpaw-open-compare", handler);
+  }, []);
+
+  const {
+    files: attachedFiles,
+    errors: fileErrors,
+    clearErrors: clearFileErrors,
+    addFiles,
+    removeFile,
+    clearFiles,
+    formatForMessage,
+  } = useFileAttachments();
+
+  // Show errors as brief toasts then auto-clear
+  useEffect(() => {
+    if (fileErrors.length === 0) return;
+    const msgs = fileErrors.map((e) => `${e.name}: ${e.reason}`).join("\n");
+    console.warn("[FileAttachment]", msgs);
+    // Auto-clear errors after 4s
+    const timer = setTimeout(clearFileErrors, 4000);
+    return () => clearTimeout(timer);
+  }, [fileErrors, clearFileErrors]);
 
   // Load persisted messages for current session
   const initialMessages = useMemo(
@@ -135,9 +172,17 @@ export function ChatInterface() {
   }, [activeSessionId, messages, status, updateSessionTitle]);
 
   const handleSend = useCallback(() => {
-    if (!input.trim()) return;
-    const text = input;
+    const fileContext = formatForMessage();
+    const trimmedInput = input.trim();
+
+    if (!trimmedInput && !fileContext) return;
+
+    const text = fileContext
+      ? `${fileContext}\n\n${trimmedInput}`
+      : trimmedInput;
+
     setInput("");
+    clearFiles();
 
     // Ensure we have a session before sending (for usage tracking)
     let sid = activeSessionId;
@@ -145,21 +190,112 @@ export function ChatInterface() {
       sid = createSession();
     }
 
-    // Auto-name the chat from the first user message
+    // Auto-name the chat from the first user message (use user's typed text for title)
     if (sid && messages.length === 0) {
-      const title = text
+      const titleSource = trimmedInput || text;
+      const title = titleSource
         .replace(/\n/g, " ")
         .trim()
         .slice(0, 50)
-        .replace(/\s+\S*$/, ""); // trim to last full word
+        .replace(/\s+\S*$/, "");
       updateSessionTitle(sid, title || "New Chat");
     }
 
     sendMessage({ text });
-  }, [input, activeSessionId, createSession, messages.length, sendMessage, updateSessionTitle]);
+  }, [input, activeSessionId, createSession, messages.length, sendMessage, updateSessionTitle, formatForMessage, clearFiles]);
+
+  const handleFileDrop = useCallback(
+    (fileList: FileList) => {
+      addFiles(fileList);
+    },
+    [addFiles]
+  );
+
+  const handleCompareStart = useCallback(
+    async (modelIds: string[]) => {
+      setPickerOpen(false);
+
+      const text = input.trim();
+      if (!text) return;
+
+      let sid = activeSessionId;
+      if (!sid) {
+        sid = createSession();
+      }
+      if (sid && messages.length === 0) {
+        const title = text
+          .replace(/\n/g, " ")
+          .trim()
+          .slice(0, 50)
+          .replace(/\s+\S*$/, "");
+        updateSessionTitle(sid, title || "New Chat");
+      }
+
+      compareActivate(modelIds);
+
+      const userMsg: UIMessage = {
+        id: Date.now().toString(36),
+        role: "user" as const,
+        parts: [{ type: "text" as const, text }],
+      };
+
+      try {
+        const res = await fetch("/api/chat/compare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [...messages, userMsg],
+            modelIds,
+            workspacePath,
+            sessionId: sid,
+          }),
+        });
+        const data = await res.json();
+        const results: CompareResult[] = (data as Array<{
+          modelId: string;
+          text: string;
+          usage: { inputTokens: number; outputTokens: number };
+          durationMs: number;
+          error?: string;
+        }>).map((r) => ({
+          modelId: r.modelId,
+          text: r.text,
+          inputTokens: r.usage?.inputTokens ?? 0,
+          outputTokens: r.usage?.outputTokens ?? 0,
+          durationMs: r.durationMs,
+          error: r.error,
+        }));
+        compareSetResults(results);
+      } catch (err) {
+        compareSetResults([
+          {
+            modelId: "error",
+            text: "",
+            inputTokens: 0,
+            outputTokens: 0,
+            durationMs: 0,
+            error: err instanceof Error ? err.message : "Compare request failed",
+          },
+        ]);
+      }
+    },
+    [input, messages, activeSessionId, createSession, updateSessionTitle, workspacePath, compareActivate, compareSetResults]
+  );
+
+  const handlePickWinner = useCallback(
+    (result: CompareResult) => {
+      const text = input.trim();
+      setInput("");
+      compareDeactivate();
+      if (text) {
+        sendMessage({ text });
+      }
+    },
+    [input, compareDeactivate, sendMessage]
+  );
 
   return (
-    <div className="flex flex-col h-full">
+    <FileDropZone onDrop={handleFileDrop}>
       <MessageList
         messages={messages}
         status={status}
@@ -177,7 +313,22 @@ export function ChatInterface() {
         onStop={stop}
         isStreaming={status === "streaming"}
         disabled={status === "submitted"}
+        files={attachedFiles}
+        onAddFiles={addFiles}
+        onRemoveFile={removeFile}
       />
-    </div>
+
+      {fileErrors.length > 0 && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50">
+          <div className="bg-error/90 text-white text-sm px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm">
+            {fileErrors.map((e, i) => (
+              <div key={i}>
+                {e.name}: {e.reason}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </FileDropZone>
   );
 }
