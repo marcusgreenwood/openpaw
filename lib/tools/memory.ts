@@ -1,11 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
 import {
-  isMemoryEnabled,
   saveUserContext,
   searchMemoryFacts,
   getMemories,
-  recallMemories,
 } from "@/lib/memory/minns-client";
 
 export const saveMemoryTool = (sessionId: string) =>
@@ -48,22 +46,21 @@ export const recallMemory = tool({
 
       const parts: string[] = [];
 
-      if (claims && claims.length > 0) {
-        parts.push("## Relevant Claims");
+      if (claims.length > 0) {
+        parts.push("## Relevant Facts");
         for (const claim of claims) {
-          parts.push(`- ${typeof claim === "string" ? claim : JSON.stringify(claim)}`);
+          parts.push(`- ${claim.claim_text} (confidence: ${claim.confidence.toFixed(2)})`);
         }
       }
 
-      if (memories && memories.length > 0) {
+      if (memories.length > 0) {
         parts.push("");
-        parts.push("## Recent Memories");
+        parts.push("## Memories");
         for (const memory of memories) {
-          const summary =
-            typeof memory === "object" && memory !== null && "summary" in memory
-              ? (memory as Record<string, unknown>).summary
-              : memory;
-          parts.push(`- ${typeof summary === "string" ? summary : JSON.stringify(summary)}`);
+          parts.push(`- **${memory.summary}**`);
+          if (memory.takeaway) {
+            parts.push(`  Takeaway: ${memory.takeaway}`);
+          }
         }
       }
 
@@ -92,28 +89,19 @@ export const listMemories = tool({
     try {
       const memories = await getMemories(1, limit);
 
-      if (!memories || memories.length === 0) {
+      if (memories.length === 0) {
         return { memories: "No memories stored yet." };
       }
 
       const parts: string[] = ["## Stored Memories"];
       for (const memory of memories) {
-        if (typeof memory === "object" && memory !== null) {
-          const m = memory as Record<string, unknown>;
-          const summary = m.summary ?? m.text ?? "Unknown";
-          const takeaways = m.takeaways ?? m.key_takeaways;
-          parts.push(`- **${String(summary)}**`);
-          if (takeaways) {
-            if (Array.isArray(takeaways)) {
-              for (const t of takeaways) {
-                parts.push(`  - ${String(t)}`);
-              }
-            } else {
-              parts.push(`  - ${String(takeaways)}`);
-            }
-          }
-        } else {
-          parts.push(`- ${String(memory)}`);
+        const tier = memory.tier ?? "Episodic";
+        parts.push(`- **[${tier}]** ${memory.summary}`);
+        if (memory.takeaway) {
+          parts.push(`  Takeaway: ${memory.takeaway}`);
+        }
+        if (memory.causal_note) {
+          parts.push(`  Insight: ${memory.causal_note}`);
         }
       }
 
@@ -125,10 +113,6 @@ export const listMemories = tool({
 });
 
 export function memoryTools(sessionId: string) {
-  if (!isMemoryEnabled()) {
-    return {};
-  }
-
   return {
     saveMemory: saveMemoryTool(sessionId),
     recallMemory,

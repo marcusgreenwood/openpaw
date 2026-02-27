@@ -13,8 +13,9 @@ import {
   deleteCronTool,
   listCronsTool,
 } from "./cron";
+import { memoryTools } from "./memory";
 
-export function allTools(workspacePath: string) {
+export function allTools(workspacePath: string, sessionId?: string) {
   return {
     askChoice,
     executeBash: executeBash(workspacePath),
@@ -27,5 +28,6 @@ export function allTools(workspacePath: string) {
     updateCron: updateCronTool(workspacePath),
     deleteCron: deleteCronTool(),
     listCrons: listCronsTool(),
+    ...memoryTools(sessionId ?? "default"),
   };
 }

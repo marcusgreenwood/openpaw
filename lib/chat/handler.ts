@@ -31,22 +31,26 @@ import {
 } from "./config";
 import { mkdir } from "node:fs/promises";
 import { recordUsage } from "@/lib/usage/session-usage-store";
+import { isMemoryEnabled, recallMemories, recordChatEvent } from "@/lib/memory";
 
 /* ------------------------------------------------------------------ */
 /*  Shared setup                                                      */
 /* ------------------------------------------------------------------ */
 
-export async function buildContext(modelId: string, workspacePath?: string) {
+export async function buildContext(
+  modelId: string,
+  workspacePath?: string,
+  sessionId?: string,
+  lastUserMessage?: string,
+) {
   const projectRoot = process.cwd();
   const raw = (workspacePath || "").trim() || DEFAULT_WORKSPACE;
   let workspace = path.isAbsolute(raw)
     ? path.resolve(raw)
     : path.resolve(projectRoot, raw);
-  // Never use project root as workspace — avoid writing into Next.js public/
   if (path.resolve(workspace) === path.resolve(projectRoot)) {
     workspace = path.join(projectRoot, "workspace");
   }
-  // Ensure workspace directory exists
   await mkdir(workspace, { recursive: true }).catch(() => {});
 
   await ensureApiKeysLoaded();
@@ -57,8 +61,44 @@ export async function buildContext(modelId: string, workspacePath?: string) {
   }
   const model = resolveModel(modelId, apiKeys);
   const skills = await getSkills(workspace);
-  const systemPrompt = await buildSystemPrompt(skills, workspace);
-  const tools = allTools(workspace);
+  let systemPrompt = await buildSystemPrompt(skills, workspace);
+  const tools = allTools(workspace, sessionId);
+
+  if (lastUserMessage && await isMemoryEnabled()) {
+    try {
+      const recall = await recallMemories(lastUserMessage);
+      const sections: string[] = [];
+
+      if (recall.claims.length > 0) {
+        sections.push("### Known Facts");
+        for (const c of recall.claims.slice(0, 5)) {
+          const text = (c as { claim_text?: string }).claim_text ?? JSON.stringify(c);
+          sections.push(`- ${text}`);
+        }
+      }
+      if (recall.memories.length > 0) {
+        sections.push("### Past Experiences");
+        for (const m of recall.memories.slice(0, 3)) {
+          const summary = (m as { summary?: string }).summary ?? JSON.stringify(m);
+          sections.push(`- ${summary}`);
+        }
+      }
+      if (recall.strategies.length > 0) {
+        sections.push("### Learned Strategies");
+        for (const s of recall.strategies.slice(0, 2)) {
+          const summary = (s as { summary?: string }).summary ?? JSON.stringify(s);
+          sections.push(`- ${summary}`);
+        }
+      }
+
+      if (sections.length > 0) {
+        systemPrompt += `\n\n---\n\n## Memory Context\n\nThe following relevant information was recalled from long-term memory. Use it to provide more personalized and context-aware responses.\n\n${sections.join("\n")}`;
+      }
+    } catch {
+      // Memory recall failed — continue without memory context
+    }
+  }
+
   return { model, systemPrompt, tools, workspace };
 }
 
@@ -73,9 +113,17 @@ export async function handleChatStreaming(
   sessionId?: string,
   maxToolSteps?: number
 ) {
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  const lastUserText = lastUserMsg?.parts
+    ?.filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join(" ") ?? "";
+
   const { model, systemPrompt, tools } = await buildContext(
     modelId,
-    workspacePath
+    workspacePath,
+    sessionId,
+    lastUserText,
   );
 
   const modelMessages = await convertToModelMessages(messages);
@@ -92,13 +140,20 @@ export async function handleChatStreaming(
         `[OpenPaw] reason=${finishReason} tools=${toolCalls.length}`
       );
     },
-    onFinish({ totalUsage, providerMetadata }) {
+    onFinish({ text, totalUsage, providerMetadata, steps: finishedSteps }) {
       console.log("[OpenPaw] onFinish", {
         sessionId: sessionId ?? "(missing)",
         inputTokens: totalUsage.inputTokens,
         outputTokens: totalUsage.outputTokens,
       });
       recordUsage(sessionId, modelId, totalUsage, providerMetadata);
+
+      if (sessionId && lastUserText && text) {
+        const toolNames = finishedSteps
+          ?.flatMap((s) => s.toolCalls?.map((tc) => tc.toolName) ?? [])
+          .filter(Boolean) ?? [];
+        recordChatEvent(sessionId, "openpaw", lastUserText, text, toolNames).catch(() => {});
+      }
     },
   });
 }
