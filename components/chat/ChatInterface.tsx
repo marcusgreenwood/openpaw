@@ -296,26 +296,38 @@ export function ChatInterface() {
 
   return (
     <FileDropZone onDrop={handleFileDrop}>
-      <MessageList
-        messages={messages}
-        status={status}
-        error={error}
-        onSuggestion={(text) => sendMessage({ text })}
-        onChoiceSelect={(option) => sendMessage({ text: option })}
-        onContinue={() =>
-          sendMessage({ text: "Please continue from where you left off." })
-        }
-      />
-      <InputBar
-        input={input}
-        onChange={setInput}
-        onSend={handleSend}
-        onStop={stop}
-        isStreaming={status === "streaming"}
-        disabled={status === "submitted"}
-        files={attachedFiles}
-        onAddFiles={addFiles}
-        onRemoveFile={removeFile}
+      {compareActive ? (
+        <CompareMode onPickWinner={handlePickWinner} />
+      ) : (
+        <MessageList
+          messages={messages}
+          status={status}
+          error={error}
+          onSuggestion={(text) => sendMessage({ text })}
+          onChoiceSelect={(option) => sendMessage({ text: option })}
+          onContinue={() =>
+            sendMessage({ text: "Please continue from where you left off." })
+          }
+        />
+      )}
+      {!compareActive && (
+        <InputBar
+          input={input}
+          onChange={setInput}
+          onSend={handleSend}
+          onStop={stop}
+          isStreaming={status === "streaming"}
+          disabled={status === "submitted"}
+          files={attachedFiles}
+          onAddFiles={addFiles}
+          onRemoveFile={removeFile}
+        />
+      )}
+
+      <ModelPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onCompare={handleCompareStart}
       />
 
       {fileErrors.length > 0 && (

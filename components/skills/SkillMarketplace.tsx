@@ -32,7 +32,7 @@ export function SkillMarketplace({
     Record<string, InstallStatus>
   >({});
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const installedNames = new Set(installedSkills.map((s) => s.name));
 

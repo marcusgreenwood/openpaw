@@ -167,6 +167,22 @@ export function Sidebar() {
     return () => clearInterval(interval);
   }, [tab, activeSessionId]);
 
+  const refreshSkills = useCallback(() => {
+    const url = workspacePath
+      ? `/api/skills?workspace=${encodeURIComponent(workspacePath)}`
+      : "/api/skills";
+    fetch(url)
+      .then((r) => r.json())
+      .then((d) => setSkills(d.skills ?? []))
+      .catch(() => {});
+  }, [workspacePath]);
+
+  useEffect(() => {
+    const onOpen = () => setMarketplaceOpen(true);
+    window.addEventListener("openpaw-open-marketplace", onOpen);
+    return () => window.removeEventListener("openpaw-open-marketplace", onOpen);
+  }, []);
+
   const handleInstallSkill = async () => {
     if (!installInput.trim()) return;
     setInstalling(true);
@@ -374,6 +390,20 @@ export function Sidebar() {
             <ToolAuditLog />
           ) : (
             <div className="flex-1 overflow-y-auto space-y-2">
+              {/* Browse Skills button */}
+              <Button
+                variant="primary"
+                size="sm"
+                className="w-full mb-2"
+                onClick={() => setMarketplaceOpen(true)}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="M21 21l-4.35-4.35" />
+                </svg>
+                Browse Skills
+              </Button>
+
               {/* Install skill */}
               <div className="flex gap-2 mb-3">
                 <input
@@ -429,6 +459,13 @@ export function Sidebar() {
           )}
         </div>
       </aside>
+
+      <SkillMarketplace
+        open={marketplaceOpen}
+        onOpenChange={setMarketplaceOpen}
+        installedSkills={skills}
+        onSkillInstalled={refreshSkills}
+      />
     </>
   );
 }

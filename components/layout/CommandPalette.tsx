@@ -222,6 +222,28 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
                   Compare Models
                 </Command.Item>
                 <Command.Item
+                  value="browse skill marketplace"
+                  onSelect={() => {
+                    onOpenChange(false);
+                    window.dispatchEvent(new CustomEvent("openpaw-open-marketplace"));
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg text-sm cursor-pointer",
+                    "text-text-secondary data-[selected=true]:bg-accent-cyan/10 data-[selected=true]:text-accent-cyan"
+                  )}
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  Browse Skill Marketplace
+                </Command.Item>
+                <Command.Item
                   value="set workspace directory"
                   onSelect={() => {
                     const path = prompt("Enter workspace path:");
