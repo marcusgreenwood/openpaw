@@ -15,7 +15,12 @@ import { useFileAttachments } from "@/lib/hooks/useFileAttachments";
 import {
   loadMessages,
   saveMessages,
+  getMessagesForBranch,
+  saveMessagesForBranch,
+  forkMessagesIntoBranch,
 } from "@/lib/chat/client-messages";
+import { useBranchStore } from "@/lib/store/branches";
+import { BranchSelector } from "./BranchSelector";
 
 export { clearSessionMessages } from "@/lib/chat/client-messages";
 
@@ -63,6 +68,14 @@ export function ChatInterface() {
   const compareSetResults = useCompareStore((s) => s.setResults);
   const compareDeactivate = useCompareStore((s) => s.deactivate);
 
+  const activeBranchId = useBranchStore(
+    (s) => (activeSessionId ? s.activeBranch[activeSessionId] ?? null : null)
+  );
+  const hasBranches = useBranchStore(
+    (s) => (activeSessionId ? (s.branches[activeSessionId]?.length ?? 0) > 0 : false)
+  );
+  const createBranch = useBranchStore((s) => s.createBranch);
+
   const comparePromptRef = useRef("");
 
   // Listen for compare trigger from command palette
@@ -92,10 +105,15 @@ export function ChatInterface() {
     return () => clearTimeout(timer);
   }, [fileErrors, clearFileErrors]);
 
-  // Load persisted messages for current session
+  // Load persisted messages for current session (branch-aware)
   const initialMessages = useMemo(
-    () => (activeSessionId ? loadMessages(activeSessionId) : []),
-    [activeSessionId]
+    () => {
+      if (!activeSessionId) return [];
+      return activeBranchId
+        ? getMessagesForBranch(activeSessionId, activeBranchId)
+        : loadMessages(activeSessionId);
+    },
+    [activeSessionId, activeBranchId]
   );
 
   const transport = useMemo(
@@ -155,7 +173,11 @@ export function ChatInterface() {
     prevStatusRef.current = status;
 
     if (lengthChanged || justFinished) {
-      saveMessages(activeSessionId, messages);
+      if (activeBranchId) {
+        saveMessagesForBranch(activeSessionId, activeBranchId, messages);
+      } else {
+        saveMessages(activeSessionId, messages);
+      }
       if (justFinished) {
         // Re-generate title from first 5 messages when chat completes
         if (messages.length >= 1 && messages.length <= 5) {
@@ -171,7 +193,7 @@ export function ChatInterface() {
         );
       }
     }
-  }, [activeSessionId, messages, status, updateSessionTitle]);
+  }, [activeSessionId, activeBranchId, messages, status, updateSessionTitle]);
 
   const handleSend = useCallback(() => {
     const fileContext = formatForMessage();
@@ -205,6 +227,20 @@ export function ChatInterface() {
 
     sendMessage({ text });
   }, [input, activeSessionId, createSession, messages.length, sendMessage, updateSessionTitle, formatForMessage, clearFiles]);
+
+  const handleFork = useCallback(
+    (messageId: string) => {
+      if (!activeSessionId) return;
+      const branchId = createBranch(activeSessionId, messageId);
+      forkMessagesIntoBranch(
+        activeSessionId,
+        branchId,
+        messageId,
+        activeBranchId
+      );
+    },
+    [activeSessionId, activeBranchId, createBranch]
+  );
 
   const handleFileDrop = useCallback(
     (fileList: FileList) => {
@@ -316,16 +352,22 @@ export function ChatInterface() {
       {compareActive ? (
         <CompareMode onPickWinner={handlePickWinner} />
       ) : (
-        <MessageList
-          messages={messages}
-          status={status}
-          error={error}
-          onSuggestion={(text) => sendMessage({ text })}
-          onChoiceSelect={(option) => sendMessage({ text: option })}
-          onContinue={() =>
-            sendMessage({ text: "Please continue from where you left off." })
-          }
-        />
+        <>
+          {activeSessionId && hasBranches && (
+            <BranchSelector sessionId={activeSessionId} />
+          )}
+          <MessageList
+            messages={messages}
+            status={status}
+            error={error}
+            onSuggestion={(text) => sendMessage({ text })}
+            onChoiceSelect={(option) => sendMessage({ text: option })}
+            onContinue={() =>
+              sendMessage({ text: "Please continue from where you left off." })
+            }
+            onFork={handleFork}
+          />
+        </>
       )}
       {!compareActive && (
         <InputBar

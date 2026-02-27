@@ -12,6 +12,7 @@ interface MessageListProps {
   onSuggestion?: (text: string) => void;
   onChoiceSelect?: (option: string) => void;
   onContinue?: () => void;
+  onFork?: (messageId: string) => void;
 }
 
 /**
@@ -34,7 +35,7 @@ function lastMessageEndsWithToolCalls(messages: UIMessage[]): boolean {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect, onContinue }: MessageListProps) {
+export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect, onContinue, onFork }: MessageListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -128,7 +129,7 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
     >
       <div className="max-w-4xl mx-auto">
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} onChoiceSelect={onChoiceSelect} />
+          <MessageBubble key={message.id} message={message} onChoiceSelect={onChoiceSelect} onFork={onFork} />
         ))}
 
         {/* Waiting indicator — only when we haven't started receiving yet */}
