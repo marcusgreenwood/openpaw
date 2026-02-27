@@ -210,6 +210,7 @@ function renderToolPart(part: any, key: string, workspacePath: string, onChoiceS
 
 export function MessageBubble({ message, onChoiceSelect, onFork }: MessageBubbleProps) {
   const isUser = message.role === "user";
+  const workspacePath = useSessionsStore((s) => s.workspacePath);
 
   return (
     <div className={cn("group/msg relative flex mb-4", isUser ? "justify-end" : "justify-start")}>
@@ -274,7 +275,7 @@ export function MessageBubble({ message, onChoiceSelect, onFork }: MessageBubble
 
           // Tool parts (type starts with "tool-")
           if (typeof part.type === "string" && part.type.startsWith("tool-")) {
-            return renderToolPart(part, key, onChoiceSelect);
+            return renderToolPart(part, key, workspacePath, onChoiceSelect);
           }
 
           // Step start

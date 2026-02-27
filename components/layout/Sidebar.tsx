@@ -13,7 +13,9 @@ import { CronsPanel } from "@/components/layout/CronsPanel";
 import { ToolAuditLog } from "@/components/layout/ToolAuditLog";
 import { GitStatus } from "@/components/layout/GitStatus";
 import { SkillMarketplace } from "@/components/skills/SkillMarketplace";
+import { WorkflowsPanel } from "@/components/workflows/WorkflowsPanel";
 import { useAuditLogStore } from "@/lib/store/audit-log";
+import { useWorkflowsStore, BUILT_IN_WORKFLOWS } from "@/lib/store/workflows";
 import type { Skill } from "@/types";
 
 interface UsageSummary {
@@ -56,8 +58,9 @@ export function Sidebar() {
 
   const [skills, setSkills] = useState<Skill[]>([]);
   const [cronsCount, setCronsCount] = useState(0);
-  const [tab, setTab] = useState<"sessions" | "crons" | "skills" | "audit">("sessions");
+  const [tab, setTab] = useState<"sessions" | "crons" | "workflows" | "skills" | "audit">("sessions");
   const auditEntryCount = useAuditLogStore((s) => s.entries.length);
+  const workflowCount = useWorkflowsStore((s) => s.workflows.length) + BUILT_IN_WORKFLOWS.length;
 
   useEffect(() => {
     const onSwitch = () => setTab("sessions");
@@ -68,6 +71,8 @@ export function Sidebar() {
   const [installing, setInstalling] = useState(false);
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
   const [usageBySession, setUsageBySession] = useState<Record<string, UsageSummary>>({});
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const [shareToast, setShareToast] = useState<string | null>(null);
 
   useEffect(() => {
     const url = workspacePath
@@ -208,6 +213,31 @@ export function Sidebar() {
     }
   };
 
+  const handleShareSession = async (sessionId: string) => {
+    setSharingId(sessionId);
+    try {
+      const { loadMessages: loadMsgs } = await import("@/lib/chat/client-messages");
+      const messages = loadMsgs(sessionId);
+      const res = await fetch("/api/sessions/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, messages }),
+      });
+      const data = await res.json();
+      if (data.shareUrl) {
+        const fullUrl = `${window.location.origin}${data.shareUrl}`;
+        await navigator.clipboard.writeText(fullUrl);
+        setShareToast("Link copied!");
+        setTimeout(() => setShareToast(null), 2500);
+      }
+    } catch {
+      setShareToast("Failed to share");
+      setTimeout(() => setShareToast(null), 2500);
+    } finally {
+      setSharingId(null);
+    }
+  };
+
   // Mobile: bottom sheet, Desktop: left sidebar
   return (
     <>
@@ -273,6 +303,22 @@ export function Sidebar() {
               {cronsCount > 0 && (
                 <span className="text-[10px] opacity-60">
                   {cronsCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab("workflows")}
+              className={cn(
+                "flex-1 text-xs py-1.5 rounded-md transition-colors cursor-pointer flex items-center justify-center gap-1.5",
+                tab === "workflows"
+                  ? "bg-white/8 text-text-primary"
+                  : "text-text-muted hover:text-text-secondary"
+              )}
+            >
+              Flows
+              {workflowCount > 0 && (
+                <span className="text-[10px] opacity-60">
+                  {workflowCount}
                 </span>
               )}
             </button>
@@ -357,6 +403,27 @@ export function Sidebar() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
+                        handleShareSession(session.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent-cyan transition-opacity cursor-pointer text-xs shrink-0"
+                      title="Share session"
+                      disabled={sharingId === session.id}
+                    >
+                      {sharingId === session.id ? (
+                        <span className="animate-pulse">...</span>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="18" cy="5" r="3" />
+                          <circle cx="6" cy="12" r="3" />
+                          <circle cx="18" cy="19" r="3" />
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
                         clearSessionMessages(session.id);
                         if (session._source === "cron") {
                           fetch(`/api/cron-sessions?sessionId=${encodeURIComponent(session.id)}`, {
@@ -386,6 +453,8 @@ export function Sidebar() {
             </div>
           ) : tab === "crons" ? (
             <CronsPanel />
+          ) : tab === "workflows" ? (
+            <WorkflowsPanel />
           ) : tab === "audit" ? (
             <ToolAuditLog />
           ) : (
@@ -466,6 +535,15 @@ export function Sidebar() {
         installedSkills={skills}
         onSkillInstalled={refreshSkills}
       />
+
+      {/* Share toast */}
+      {shareToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60]">
+          <div className="bg-accent-cyan/90 text-white text-sm px-4 py-2 rounded-lg shadow-lg backdrop-blur-sm">
+            {shareToast}
+          </div>
+        </div>
+      )}
     </>
   );
 }

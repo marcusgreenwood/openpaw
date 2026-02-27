@@ -14,6 +14,7 @@ import {
   listCronsTool,
 } from "./cron";
 import { memoryTools } from "./memory";
+import { searchContext } from "./context";
 
 export function allTools(workspacePath: string, sessionId?: string) {
   return {
@@ -28,6 +29,7 @@ export function allTools(workspacePath: string, sessionId?: string) {
     updateCron: updateCronTool(workspacePath),
     deleteCron: deleteCronTool(),
     listCrons: listCronsTool(),
+    searchContext: searchContext(workspacePath),
     ...memoryTools(sessionId ?? "default"),
   };
 }

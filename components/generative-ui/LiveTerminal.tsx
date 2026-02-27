@@ -67,11 +67,6 @@ export function LiveTerminal({
   }
 
   const shortCmd = command.split("\n")[0].slice(0, 60);
-  const statusLabel = isRunning
-    ? "running"
-    : exitCode !== null
-      ? `exit ${exitCode}`
-      : "idle";
 
   return (
     <div className="my-2 bg-[#0d0d0f] border border-white/[0.06] rounded-lg overflow-hidden">

@@ -23,6 +23,7 @@ import {
 import { allTools } from "@/lib/tools";
 import { buildSystemPrompt } from "@/lib/system-prompt";
 import { getSkills } from "@/lib/skills/manager";
+import { searchWorkspaceContext } from "@/lib/context/search";
 import * as path from "node:path";
 import {
   CHAT_BLOCKING_TIMEOUT_MS,
@@ -99,7 +100,100 @@ export async function buildContext(
     }
   }
 
+  // Auto-inject workspace context for code-related queries
+  if (lastUserMessage && looksCodeRelated(lastUserMessage)) {
+    try {
+      const contextResults = await searchWorkspaceContext(
+        lastUserMessage,
+        workspace,
+        3,
+        200
+      );
+      if (contextResults.length > 0) {
+        const snippets = contextResults.map((r) => {
+          const lines =
+            r.relevantLines.length > 0
+              ? "\n```\n" + r.relevantLines.join("\n") + "\n```"
+              : "";
+          return `- **${r.relativePath}** (relevance: ${r.score})${lines}`;
+        });
+        systemPrompt += `\n\n---\n\n## Workspace Context\n\nRelevant files found in the workspace:\n\n${snippets.join("\n\n")}`;
+      }
+    } catch {
+      // Context search failed — continue without it
+    }
+  }
+
   return { model, systemPrompt, tools, workspace };
+}
+
+const CODE_KEYWORDS = [
+  "function",
+  "class",
+  "import",
+  "export",
+  "const",
+  "let",
+  "var",
+  "return",
+  "async",
+  "await",
+  "component",
+  "hook",
+  "api",
+  "route",
+  "handler",
+  "module",
+  "package",
+  "file",
+  "code",
+  "bug",
+  "error",
+  "fix",
+  "refactor",
+  "test",
+  "type",
+  "interface",
+  "config",
+  "setup",
+  "build",
+  "deploy",
+  "database",
+  "schema",
+  "migration",
+  "implement",
+  "create",
+  "update",
+  "delete",
+  "add",
+  "remove",
+  "change",
+  "modify",
+  "debug",
+  "lint",
+  "compile",
+  "typescript",
+  "javascript",
+  "python",
+  "react",
+  "next",
+  "node",
+  "npm",
+  "src",
+  "lib",
+  "utils",
+  "helper",
+  "service",
+  "controller",
+  "middleware",
+  "endpoint",
+  "server",
+  "client",
+];
+
+function looksCodeRelated(message: string): boolean {
+  const lower = message.toLowerCase();
+  return CODE_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
 /* ------------------------------------------------------------------ */

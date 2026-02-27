@@ -2,20 +2,12 @@ import { spawn } from "node:child_process";
 import * as path from "node:path";
 import { DEFAULT_WORKSPACE } from "@/lib/chat/config";
 import { ensureVenv, getVenvEnv } from "@/lib/python-sandbox";
+import { BLOCKED_PATTERNS } from "@/lib/tools/bash";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
 
 const TERMINAL_TIMEOUT_MS = 60_000;
-
-const BLOCKED_PATTERNS = [
-  /rm\s+-rf\s+\//,
-  /sudo\s+rm/,
-  /mkfs/,
-  /dd\s+if=/,
-  />\s*\/dev\/sd/,
-  /chmod\s+-R\s+777\s+\//,
-];
 
 export async function POST(req: Request) {
   const { command, workspacePath: rawWorkspacePath } = (await req.json()) as {

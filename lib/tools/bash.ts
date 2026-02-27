@@ -5,7 +5,7 @@ import { spawn } from "node:child_process";
 import { BASH_TIMEOUT_MS } from "@/lib/chat/config";
 import { ensureVenv, getVenvEnv } from "@/lib/python-sandbox";
 
-const BLOCKED_PATTERNS = [
+export const BLOCKED_PATTERNS = [
   /rm\s+-rf\s+\//,
   /sudo\s+rm/,
   /mkfs/,
@@ -36,6 +36,13 @@ export const executeBash = (workspacePath: string) =>
         .default(BASH_TIMEOUT_MS)
         .describe(
           `Timeout in milliseconds (default ${BASH_TIMEOUT_MS}ms, configurable via CLAW_BASH_TIMEOUT_MS env var)`
+        ),
+      streaming: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe(
+          "When true, the UI shows a live terminal with real-time output streaming via SSE. The tool still returns the final output."
         ),
     }),
     execute: async ({ command, timeout = BASH_TIMEOUT_MS }) => {
