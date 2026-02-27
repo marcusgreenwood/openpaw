@@ -13,6 +13,7 @@ import { CronsPanel } from "@/components/layout/CronsPanel";
 import { ToolAuditLog } from "@/components/layout/ToolAuditLog";
 import { GitStatus } from "@/components/layout/GitStatus";
 import { SkillMarketplace } from "@/components/skills/SkillMarketplace";
+import { SkillEditor } from "@/components/skills/SkillEditor";
 import { WorkflowsPanel } from "@/components/workflows/WorkflowsPanel";
 import { useAuditLogStore } from "@/lib/store/audit-log";
 import { useWorkflowsStore, BUILT_IN_WORKFLOWS } from "@/lib/store/workflows";
@@ -70,6 +71,11 @@ export function Sidebar() {
   const [installInput, setInstallInput] = useState("");
   const [installing, setInstalling] = useState(false);
   const [marketplaceOpen, setMarketplaceOpen] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<string | null>(null);
+  const [deletingSkill, setDeletingSkill] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Array<{ name: string; owner: string; repo: string; description: string }>>([]);
+  const [searching, setSearching] = useState(false);
   const [usageBySession, setUsageBySession] = useState<Record<string, UsageSummary>>({});
   const [sharingId, setSharingId] = useState<string | null>(null);
   const [shareToast, setShareToast] = useState<string | null>(null);
@@ -210,6 +216,39 @@ export function Sidebar() {
       }
     } finally {
       setInstalling(false);
+    }
+  };
+
+  const handleSearchSkills = async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/skills/search?q=${encodeURIComponent(query.trim())}`);
+      const data = await res.json();
+      setSearchResults(data.results ?? []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleDeleteSkill = async (name: string) => {
+    setDeletingSkill(name);
+    try {
+      const res = await fetch(`/api/skills/${encodeURIComponent(name)}`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        refreshSkills();
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setDeletingSkill(null);
     }
   };
 
@@ -458,72 +497,170 @@ export function Sidebar() {
           ) : tab === "audit" ? (
             <ToolAuditLog />
           ) : (
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {/* Browse Skills button */}
-              <Button
-                variant="primary"
-                size="sm"
-                className="w-full mb-2"
-                onClick={() => setMarketplaceOpen(true)}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="M21 21l-4.35-4.35" />
-                </svg>
-                Browse Skills
-              </Button>
+            <div className="flex-1 flex flex-col overflow-hidden space-y-2">
+              {/* Search skills using find-skills (npx skills find) */}
+              <div className="shrink-0 space-y-2">
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="M21 21l-4.35-4.35" />
+                    </svg>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => handleSearchSkills(e.target.value)}
+                      placeholder="Search skills (npx skills find)..."
+                      className="w-full h-8 pl-8 pr-3 rounded-lg text-xs bg-white/5 border border-white/8 text-text-primary outline-none placeholder:text-text-muted focus:border-accent-cyan/40"
+                    />
+                  </div>
+                </div>
 
-              {/* Install skill */}
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="text"
-                  value={installInput}
-                  onChange={(e) => setInstallInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleInstallSkill()}
-                  placeholder="e.g. vercel-labs/agent-skills"
-                  className="flex-1 h-8 px-3 rounded-lg text-xs font-mono bg-white/5 border border-white/8 text-text-primary outline-none placeholder:text-text-muted"
-                />
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={handleInstallSkill}
-                  disabled={installing}
-                >
-                  {installing ? "..." : "+"}
-                </Button>
+                {/* Install from repo */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={installInput}
+                    onChange={(e) => setInstallInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleInstallSkill()}
+                    placeholder="Install: owner/repo"
+                    className="flex-1 h-7 px-2.5 rounded-md text-[11px] font-mono bg-white/5 border border-white/8 text-text-primary outline-none placeholder:text-text-muted"
+                  />
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handleInstallSkill}
+                    disabled={installing}
+                    className="h-7 px-2 text-[11px]"
+                  >
+                    {installing ? "..." : "Install"}
+                  </Button>
+                </div>
               </div>
 
-              {skills.map((skill) => (
-                <div
-                  key={skill.name}
-                  className="glass-card p-3 space-y-1"
-                >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-text-primary">
-                      {skill.name}
-                    </span>
-                    {skill.source === "user" ? (
-                      <Badge variant="success">user</Badge>
-                    ) : (
-                      <Badge variant="default">built-in</Badge>
-                    )}
-                    {skill.tags?.slice(0, 2).map((tag) => (
-                      <Badge key={tag} variant="default">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <p className="text-xs text-text-muted line-clamp-2">
-                    {skill.description}
-                  </p>
+              {/* Search results */}
+              {searchQuery.trim() && (
+                <div className="shrink-0 border-b border-white/6 pb-2">
+                  {searching ? (
+                    <p className="text-text-muted text-[11px] text-center py-2 animate-pulse">Searching...</p>
+                  ) : searchResults.length > 0 ? (
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      <p className="text-[10px] text-text-muted uppercase tracking-wider">Search Results</p>
+                      {searchResults.slice(0, 6).map((r) => {
+                        const isInstalled = skills.some((s) => s.name === r.name);
+                        return (
+                          <div key={`${r.owner}/${r.repo}/${r.name}`} className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.02] hover:bg-white/5">
+                            <div className="flex-1 min-w-0">
+                              <span className="text-xs text-text-primary block truncate">{r.name}</span>
+                              <span className="text-[10px] text-text-muted block truncate">{r.description}</span>
+                            </div>
+                            {isInstalled ? (
+                              <Badge variant="success" className="text-[9px] shrink-0">Installed</Badge>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="primary"
+                                className="h-6 px-2 text-[10px] shrink-0"
+                                onClick={async () => {
+                                  setInstalling(true);
+                                  try {
+                                    await fetch("/api/skills", {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ skillName: `${r.owner}/${r.repo}` }),
+                                    });
+                                    refreshSkills();
+                                  } finally {
+                                    setInstalling(false);
+                                  }
+                                }}
+                                disabled={installing}
+                              >
+                                Install
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-text-muted text-[11px] text-center py-2">No skills found for &quot;{searchQuery}&quot;</p>
+                  )}
                 </div>
-              ))}
-
-              {skills.length === 0 && (
-                <p className="text-text-muted text-xs text-center py-4">
-                  No skills installed. Try installing from skills.sh
-                </p>
               )}
+
+              {/* Installed skills list */}
+              <div className="flex-1 overflow-y-auto space-y-1.5">
+                <p className="text-[10px] text-text-muted uppercase tracking-wider">Installed Skills ({skills.length})</p>
+
+                {skills.map((skill) => (
+                  <div
+                    key={skill.name}
+                    className="group glass-card p-2.5 space-y-1 hover:border-white/12 transition-colors"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-medium text-text-primary flex-1 truncate">
+                        {skill.name}
+                      </span>
+                      {skill.source === "user" ? (
+                        <Badge variant="success" className="text-[9px]">user</Badge>
+                      ) : (
+                        <Badge variant="default" className="text-[9px]">built-in</Badge>
+                      )}
+                      {/* Edit button */}
+                      <button
+                        onClick={() => setEditingSkill(skill.name)}
+                        className={cn(
+                          "w-6 h-6 flex items-center justify-center rounded text-text-muted transition-all cursor-pointer",
+                          skill.source === "built-in"
+                            ? "hover:bg-white/5 hover:text-text-secondary"
+                            : "hover:bg-accent-cyan/10 hover:text-accent-cyan"
+                        )}
+                        title={skill.source === "built-in" ? "View skill (read-only)" : "Edit skill"}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
+                      {/* Delete button (user skills only) */}
+                      {skill.source === "user" && (
+                        <button
+                          onClick={() => handleDeleteSkill(skill.name)}
+                          disabled={deletingSkill === skill.name}
+                          className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:bg-error/10 hover:text-error transition-all cursor-pointer"
+                          title="Delete skill"
+                        >
+                          {deletingSkill === skill.name ? (
+                            <span className="text-[10px] animate-pulse">...</span>
+                          ) : (
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-text-muted line-clamp-2">
+                      {skill.description}
+                    </p>
+                    {skill.tags && skill.tags.length > 0 && (
+                      <div className="flex gap-1 flex-wrap">
+                        {skill.tags.slice(0, 3).map((tag) => (
+                          <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-text-muted">{tag}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {skills.length === 0 && (
+                  <p className="text-text-muted text-xs text-center py-4">
+                    No skills installed. Search above or install from skills.sh
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -535,6 +672,18 @@ export function Sidebar() {
         installedSkills={skills}
         onSkillInstalled={refreshSkills}
       />
+
+      {editingSkill && (
+        <SkillEditor
+          skillName={editingSkill}
+          workspace={workspacePath || undefined}
+          onClose={() => setEditingSkill(null)}
+          onSaved={() => {
+            refreshSkills();
+            setEditingSkill(null);
+          }}
+        />
+      )}
 
       {/* Share toast */}
       {shareToast && (
