@@ -5,10 +5,13 @@ import type { Skill } from "@/types";
 const PROMPT_PATH = path.join(process.cwd(), "lib", "system-prompt.md");
 
 let cachedPrompt: string | null = null;
+let cachedAt = 0;
+const CACHE_TTL_MS = 10_000;
 
 async function loadPromptTemplate(): Promise<string> {
-  if (cachedPrompt) return cachedPrompt;
+  if (cachedPrompt && Date.now() - cachedAt < CACHE_TTL_MS) return cachedPrompt;
   cachedPrompt = await fs.readFile(PROMPT_PATH, "utf-8");
+  cachedAt = Date.now();
   return cachedPrompt;
 }
 
