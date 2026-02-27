@@ -1,5 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import Link from "next/link";
 import { SharedSessionView } from "@/components/chat/SharedSessionView";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +12,6 @@ interface SharedSession {
   messages: unknown[];
   sharedAt: number;
   updatedAt: number;
-  presence: { viewerId: string; lastSeen: number }[];
 }
 
 async function loadSharedSession(
@@ -45,26 +45,22 @@ export default async function SharedSessionPage({
           <p className="text-text-muted text-sm">
             This shared session doesn&apos;t exist or has been removed.
           </p>
-          <a
+          <Link
             href="/"
             className="inline-block text-sm text-accent-cyan hover:underline"
           >
             Go to OpenPaw
-          </a>
+          </Link>
         </div>
       </div>
     );
   }
 
-  const activePresence = session.presence.filter(
-    (p) => Date.now() - p.lastSeen < 30_000
-  );
-
   return (
     <div className="h-screen flex flex-col bg-bg-base">
       {/* Minimal header */}
       <header className="h-14 shrink-0 flex items-center justify-between px-4 md:px-6 border-b border-white/6 bg-bg-base/80 backdrop-blur-lg">
-        <a href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <svg
             width="24"
             height="24"
@@ -105,7 +101,7 @@ export default async function SharedSessionPage({
           <h1 className="text-lg font-bold gradient-text tracking-tight">
             OpenPaw
           </h1>
-        </a>
+        </Link>
       </header>
 
       <main className="flex-1 overflow-hidden">
@@ -113,7 +109,7 @@ export default async function SharedSessionPage({
           sessionId={session.sessionId}
           initialMessages={session.messages as Parameters<typeof SharedSessionView>[0]["initialMessages"]}
           sharedAt={session.sharedAt}
-          viewerCount={activePresence.length}
+          viewerCount={0}
         />
       </main>
     </div>

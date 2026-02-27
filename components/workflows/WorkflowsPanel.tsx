@@ -52,9 +52,39 @@ export function WorkflowsPanel() {
     deleteWorkflow(id);
   };
 
+  const processSSEEvent = (event: string, data: Record<string, unknown>) => {
+    const currentRun = useWorkflowsStore.getState().activeRun;
+    if (!currentRun) return;
+
+    if (event === "step-start") {
+      const stepIndex = data.stepIndex as number;
+      const results = [...currentRun.stepResults];
+      if (results[stepIndex]) {
+        results[stepIndex] = { ...results[stepIndex], status: "running" };
+      }
+      updateRun({
+        currentStepIndex: stepIndex,
+        stepResults: results,
+      });
+    } else if (event === "step-complete") {
+      const result = data as unknown as WorkflowStepResult;
+      const results = [...currentRun.stepResults];
+      const idx = results.findIndex((r) => r.stepId === result.stepId);
+      if (idx >= 0) {
+        results[idx] = result;
+      }
+      updateRun({ stepResults: results });
+    } else if (event === "run-complete") {
+      updateRun({
+        status: data.status as WorkflowRun["status"],
+        completedAt: Date.now(),
+      });
+    }
+  };
+
   const handleRunWorkflow = useCallback(
     async (workflow: Workflow) => {
-      const runId = startRun(workflow.id, workflow.steps);
+      startRun(workflow.id, workflow.steps);
       setMode("run");
 
       const controller = new AbortController();
@@ -99,7 +129,7 @@ export function WorkflowsPanel() {
             } else if (line.startsWith("data: ") && eventType) {
               try {
                 const data = JSON.parse(line.slice(6));
-                handleSSEEvent(runId, eventType, data);
+                processSSEEvent(eventType, data);
               } catch {
                 // skip malformed JSON
               }
@@ -115,40 +145,8 @@ export function WorkflowsPanel() {
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [startRun, updateRun, workspacePath]
-  );
-
-  const handleSSEEvent = useCallback(
-    (_runId: string, event: string, data: Record<string, unknown>) => {
-      const currentRun = useWorkflowsStore.getState().activeRun;
-      if (!currentRun) return;
-
-      if (event === "step-start") {
-        const stepIndex = data.stepIndex as number;
-        const results = [...currentRun.stepResults];
-        if (results[stepIndex]) {
-          results[stepIndex] = { ...results[stepIndex], status: "running" };
-        }
-        updateRun({
-          currentStepIndex: stepIndex,
-          stepResults: results,
-        });
-      } else if (event === "step-complete") {
-        const result = data as unknown as WorkflowStepResult;
-        const results = [...currentRun.stepResults];
-        const idx = results.findIndex((r) => r.stepId === result.stepId);
-        if (idx >= 0) {
-          results[idx] = result;
-        }
-        updateRun({ stepResults: results });
-      } else if (event === "run-complete") {
-        updateRun({
-          status: data.status as WorkflowRun["status"],
-          completedAt: Date.now(),
-        });
-      }
-    },
-    [updateRun]
   );
 
   const handleCancelRun = () => {

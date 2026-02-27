@@ -6,7 +6,6 @@ import type {
   Workflow,
   WorkflowStep,
   WorkflowRun,
-  WorkflowStepResult,
 } from "@/lib/workflows/types";
 
 function generateId() {
@@ -131,7 +130,7 @@ interface WorkflowsState {
 
 export const useWorkflowsStore = create<WorkflowsState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       workflows: [],
       activeRun: null,
 
