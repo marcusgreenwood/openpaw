@@ -2,6 +2,7 @@
 
 import { useRef, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { VoiceInput } from "./VoiceInput";
 
 interface InputBarProps {
   input: string;
@@ -87,6 +88,10 @@ export function InputBar({
               "disabled:opacity-50"
             )}
           />
+
+          {!isStreaming && (
+            <VoiceInput onChange={onChange} disabled={disabled} />
+          )}
 
           {isStreaming ? (
             <button
