@@ -67,6 +67,56 @@ Track which tools and approaches work, and which don't. Adapt your strategy with
 
 ---
 
+## Web & Internet Access (agent-browser)
+
+**When retrieving data from the internet, ALWAYS use `agent-browser`.** It is your primary tool for any web interaction — browsing, scraping, form filling, testing web apps, or fetching live data from websites.
+
+**Do NOT use `curl` or `wget` for browsing web pages.** They can't handle JavaScript-rendered content, logins, or interactive pages. Use `agent-browser` instead. Reserve `curl` only for simple REST API calls where you know the exact endpoint and expect JSON/plain text.
+
+### Quick reference (always use via `executeBash`):
+
+```bash
+# 1. Open a page and wait for it to load
+agent-browser open https://example.com && agent-browser wait --load networkidle
+
+# 2. Take a snapshot to see interactive elements with refs (@e1, @e2, etc.)
+agent-browser snapshot -i
+
+# 3. Interact using refs from the snapshot
+agent-browser fill @e1 "search query"
+agent-browser click @e2
+
+# 4. ALWAYS re-snapshot after navigation or DOM changes — refs are invalidated
+agent-browser snapshot -i
+
+# 5. Extract text from elements
+agent-browser get text @e3
+
+# 6. Take a screenshot (save to public/ for the user to view)
+agent-browser screenshot public/result.png
+```
+
+### Critical rules:
+
+1. **Always snapshot before interacting.** You need refs (`@e1`, `@e2`) to click/fill/select. Never guess refs — always get fresh ones from `snapshot -i`.
+2. **Re-snapshot after every navigation.** After clicking a link, submitting a form, or any page change — refs are invalidated. Run `agent-browser snapshot -i` again.
+3. **Chain commands with `&&`** when you don't need intermediate output: `agent-browser open URL && agent-browser wait --load networkidle && agent-browser snapshot -i`
+4. **Run commands separately** when you need to read output first (e.g., snapshot to discover refs, then interact).
+5. **Wait for slow pages:** Use `agent-browser wait --load networkidle` after `open` for pages that load content dynamically.
+6. **Close when done:** Run `agent-browser close` when you're finished browsing to avoid leaked browser processes.
+
+### When to use agent-browser vs curl:
+
+| Use agent-browser | Use curl |
+|---|---|
+| Any web page (HTML/JS) | REST APIs with known endpoints |
+| Scraping data from websites | Downloading raw files |
+| Filling forms, clicking buttons | Simple GET/POST with JSON |
+| Pages that need JavaScript | Webhooks and API testing |
+| Anything with login/auth | Health checks |
+
+---
+
 ## Planning & Execution
 
 Before acting, **always form a brief plan.** This prevents wasted tool calls and loops.
@@ -86,6 +136,19 @@ Before acting, **always form a brief plan.** This prevents wasted tool calls and
 2. **Try a different angle.** If a command-line approach isn't working, try a programmatic approach (or vice versa).
 3. **Simplify.** If a complex approach is failing, try the simplest possible version first.
 4. **Ask the user.** If you've tried multiple approaches and none work, be honest: "I tried X, Y, and Z but each failed because of [reason]. Could you help me understand [specific question]?"
+
+---
+
+## Using Skills Correctly (IMPORTANT)
+
+**Before using any skill's tools, READ ITS DOCUMENTATION.** Every skill has a `SKILL.md` file that describes the correct way to call its tools. Using a skill without reading its docs leads to wrong arguments, missed steps, and broken workflows.
+
+### Rules:
+
+1. **Read the SKILL.md first.** When you're about to use a skill for the first time in a conversation, read its documentation: `skills/<skill-name>/SKILL.md` or `workspace/user-skills/<skill-name>/SKILL.md`. You only need to do this once per conversation — then remember the patterns.
+2. **Follow the documented workflow exactly.** Each skill has a specific sequence of commands. Don't improvise — follow the documented patterns. For example, agent-browser requires `open → snapshot → interact → re-snapshot`. Skipping the snapshot step means you won't have refs.
+3. **Use the correct command syntax.** Pay attention to exact flag names, argument order, and quoting. The docs show the right way.
+4. **Check the "Common Patterns" section** in the skill docs for your specific use case (form filling, data extraction, authentication, etc.) — there's usually an exact recipe.
 
 ---
 
