@@ -63,6 +63,8 @@ export function ChatInterface() {
   const compareSetResults = useCompareStore((s) => s.setResults);
   const compareDeactivate = useCompareStore((s) => s.deactivate);
 
+  const comparePromptRef = useRef("");
+
   // Listen for compare trigger from command palette
   useEffect(() => {
     const handler = () => setPickerOpen(true);
@@ -113,7 +115,7 @@ export function ChatInterface() {
     []
   );
 
-  const { messages, sendMessage, status, stop, error } = useChat({
+  const { messages, sendMessage, setMessages, status, stop, error } = useChat({
     id: activeSessionId ?? undefined,
     transport,
     messages: initialMessages,
@@ -218,6 +220,9 @@ export function ChatInterface() {
       const text = input.trim();
       if (!text) return;
 
+      comparePromptRef.current = text;
+      setInput("");
+
       let sid = activeSessionId;
       if (!sid) {
         sid = createSession();
@@ -284,14 +289,26 @@ export function ChatInterface() {
 
   const handlePickWinner = useCallback(
     (result: CompareResult) => {
-      const text = input.trim();
-      setInput("");
+      const promptText = comparePromptRef.current;
       compareDeactivate();
-      if (text) {
-        sendMessage({ text });
+
+      if (promptText) {
+        const ts = Date.now().toString(36);
+        const userMsg: UIMessage = {
+          id: `cmp-u-${ts}`,
+          role: "user" as const,
+          parts: [{ type: "text" as const, text: promptText }],
+        };
+        const assistantMsg: UIMessage = {
+          id: `cmp-a-${ts}`,
+          role: "assistant" as const,
+          parts: [{ type: "text" as const, text: result.text }],
+        };
+        setMessages((prev) => [...prev, userMsg, assistantMsg]);
+        comparePromptRef.current = "";
       }
     },
-    [input, compareDeactivate, sendMessage]
+    [compareDeactivate, setMessages]
   );
 
   return (
