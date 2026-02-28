@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSessionsStore } from "@/lib/store/sessions";
 
@@ -18,22 +18,21 @@ export function GitStatus() {
   const [data, setData] = useState<GitData | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  const fetchStatus = useCallback(() => {
-    if (!workspacePath) {
-      setData(null);
-      return;
-    }
-    fetch(`/api/git?workspace=${encodeURIComponent(workspacePath)}`)
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(() => setData(null));
-  }, [workspacePath]);
-
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 10000);
+    if (!workspacePath) {
+      const t = setTimeout(() => setData(null), 0);
+      return () => clearTimeout(t);
+    }
+    const run = () => {
+      fetch(`/api/git?workspace=${encodeURIComponent(workspacePath)}`)
+        .then((r) => r.json())
+        .then((d: GitData) => setData(d))
+        .catch(() => setData(null));
+    };
+    run();
+    const interval = setInterval(run, 10000);
     return () => clearInterval(interval);
-  }, [fetchStatus]);
+  }, [workspacePath]);
 
   if (!data?.isRepo) return null;
 

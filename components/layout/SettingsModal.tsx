@@ -15,6 +15,11 @@ interface SettingsModalProps {
 type SettingsTab = "workspace" | "providers" | "memory" | "channels";
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
+  if (!open) return null;
+  return <SettingsModalInner onClose={onClose} />;
+}
+
+function SettingsModalInner({ onClose }: { onClose: () => void }) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
   const { workspacePath, setWorkspacePath, maxToolSteps, setMaxToolSteps, toolApprovalMode, setToolApprovalMode } =
     useSessionsStore();
@@ -26,23 +31,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    if (open) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-      setTempPath(workspacePath);
-      setTempMaxSteps(String(maxToolSteps ?? 15));
-      fetch("/api/config")
-        .then((r) => r.json())
-        .then((d) => setDefaultWorkspace(d.defaultWorkspace ?? null))
-        .catch(() => setDefaultWorkspace(null));
-    }
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((d) => setDefaultWorkspace(d.defaultWorkspace ?? null))
+      .catch(() => setDefaultWorkspace(null));
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [open, onClose, workspacePath, maxToolSteps]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     {

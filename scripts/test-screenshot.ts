@@ -8,7 +8,6 @@ import * as fs from "node:fs/promises";
 const PROJECT_ROOT = path.resolve(process.cwd());
 const WORKSPACE = path.join(PROJECT_ROOT, "workspace");
 const WORKSPACE_PUBLIC = path.join(WORKSPACE, "public");
-const PROJECT_PUBLIC = path.join(PROJECT_ROOT, "public");
 
 async function main() {
   console.log("Testing executeBash agent-browser screenshot path rewrite...\n");

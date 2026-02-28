@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { FileAttachment } from "@/lib/hooks/useFileAttachments";
 
@@ -29,10 +30,13 @@ export function FileChips({ files, onRemove }: FileChipsProps) {
           )}
         >
           {file.type === "image" ? (
-            <img
+            <Image
               src={file.content}
               alt={file.name}
-              className="w-6 h-6 rounded object-cover shrink-0"
+              width={24}
+              height={24}
+              unoptimized
+              className="rounded object-cover shrink-0"
             />
           ) : (
             <svg
