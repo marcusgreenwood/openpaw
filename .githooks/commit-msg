@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# commit-msg hook: enforces Conventional Commits format.
+# Normalizes messages where possible; rejects messages that cannot be inferred.
+#
+# Valid types: feat, fix, docs, chore, refactor, test, ci, build
+
+set -euo pipefail
+
+COMMIT_MSG_FILE="$1"
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Ignore merge commits, fixup!, squash!, and comments-only messages
+if echo "$COMMIT_MSG" | grep -qE '^(Merge |Revert |fixup!|squash!)'; then
+  exit 0
+fi
+
+# Strip leading/trailing whitespace from first line
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+# Already valid conventional commit? (type(scope)?: subject)
+CONVENTIONAL_PATTERN='^(feat|fix|docs|chore|refactor|test|ci|build)(\([^)]+\))?!?: .+'
+if echo "$FIRST_LINE" | grep -qE "$CONVENTIONAL_PATTERN"; then
+  exit 0
+fi
+
+# Attempt to infer type from keywords in the message (lowercase for matching)
+LOWER=$(echo "$FIRST_LINE" | tr '[:upper:]' '[:lower:]')
+
+infer_type() {
+  local msg="$1"
+  # feat must be checked before fix to avoid 'add fix' resolving to fix
+  if echo "$msg" | grep -qE '\b(add|implement|new|create|introduce|support)\b'; then
+    echo "feat"
+  elif echo "$msg" | grep -qE '\b(fix|bug|correct|resolve|patch|repair)\b'; then
+    echo "fix"
+  elif echo "$msg" | grep -qE '\b(doc|docs|document|readme|comment|jsdoc|tsdoc)\b'; then
+    echo "docs"
+  elif echo "$msg" | grep -qE '\b(refactor|restructure|reorganize|rename|move|extract)\b'; then
+    echo "refactor"
+  elif echo "$msg" | grep -qE '\b(test|spec|coverage|mock|stub|snapshot)\b'; then
+    echo "test"
+  elif echo "$msg" | grep -qE '\b(ci|pipeline|workflow|github.?action|travis|circleci)\b'; then
+    echo "ci"
+  elif echo "$msg" | grep -qE '\b(build|webpack|rollup|vite|esbuild|babel|compile|bundle)\b'; then
+    echo "build"
+  elif echo "$msg" | grep -qE '\b(update|upgrade|bump|improve|change|remove|delete|clean|format|lint|style)\b'; then
+    echo "chore"
+  else
+    echo ""
+  fi
+}
+
+INFERRED_TYPE=$(infer_type "$LOWER")
+
+if [ -z "$INFERRED_TYPE" ]; then
+  echo ""
+  echo "❌ Commit message does not follow Conventional Commits format and could not be normalized."
+  echo ""
+  echo "   Message: $FIRST_LINE"
+  echo ""
+  echo "   Expected format: <type>(<scope>): <subject>"
+  echo "   Valid types: feat, fix, docs, chore, refactor, test, ci, build"
+  echo ""
+  echo "   Examples:"
+  echo "     feat(auth): add OAuth2 login"
+  echo "     fix: correct null pointer in user lookup"
+  echo "     chore: update dependencies"
+  echo ""
+  exit 1
+fi
+
+# Build normalized message
+NORMALIZED_SUBJECT="${INFERRED_TYPE}: ${FIRST_LINE}"
+
+# Preserve body/trailers if present (lines after the first)
+BODY=$(echo "$COMMIT_MSG" | tail -n +2)
+
+if [ -n "$BODY" ]; then
+  printf '%s\n%s\n' "$NORMALIZED_SUBJECT" "$BODY" > "$COMMIT_MSG_FILE"
+else
+  printf '%s\n' "$NORMALIZED_SUBJECT" > "$COMMIT_MSG_FILE"
+fi
+
+echo "✅ Commit message normalized to: $NORMALIZED_SUBJECT"
