@@ -183,7 +183,6 @@ export function ChannelsPanel() {
         return (
           <ChannelCard
             key={def.name}
-            name={def.name}
             label={def.label}
             icon={def.icon}
             enabled={ch.enabled}
@@ -207,7 +206,6 @@ export function ChannelsPanel() {
         return (
           <ChannelCard
             key={def.name}
-            name={def.name}
             label={def.label}
             icon={def.icon}
             enabled={ch.enabled}
