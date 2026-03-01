@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ModelSwitcher } from "./ModelSwitcher";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 import { SettingsModal } from "./SettingsModal";

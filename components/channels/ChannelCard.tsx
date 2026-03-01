@@ -24,7 +24,6 @@ interface ChannelCardProps {
 }
 
 export function ChannelCard({
-  name,
   label,
   icon,
   enabled,

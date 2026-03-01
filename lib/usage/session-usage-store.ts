@@ -164,7 +164,7 @@ export function recordUsage(
         costAnalysis.savings.totalSavings > 0
           ? costAnalysis.savings.totalSavings
           : undefined;
-    } catch (pricingErr) {
+    } catch {
       // Model not in pricing table - record tokens but $0 cost
     }
 

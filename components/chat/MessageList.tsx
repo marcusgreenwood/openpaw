@@ -72,10 +72,10 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
     if (prev === 0 && messages.length > 0) {
       // New conversation loaded — snap immediately
       requestAnimationFrame(() => scrollToBottom("instant"));
-      setIsAtBottom(true);
+      setTimeout(() => setIsAtBottom(true), 0);
     } else if (messages.length > prev) {
       // New message added (user or assistant) — scroll down
-      setIsAtBottom(true);
+      setTimeout(() => setIsAtBottom(true), 0);
       requestAnimationFrame(() => scrollToBottom("smooth"));
     }
   }, [messages.length, scrollToBottom]);

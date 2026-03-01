@@ -82,9 +82,12 @@ export function CatAvatar() {
   // Show bubble briefly when mood changes
   useEffect(() => {
     if (mood === "idle") return;
-    setShowBubble(true);
+    const showTimer = setTimeout(() => setShowBubble(true), 0);
     const t = setTimeout(() => setShowBubble(false), 4000);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(t);
+    };
   }, [mood, message]);
 
   if (!visible) return null;

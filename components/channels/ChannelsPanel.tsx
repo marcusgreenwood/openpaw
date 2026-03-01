@@ -117,8 +117,6 @@ const CUSTOM_CHANNELS: ChannelDef[] = [
   },
 ];
 
-const _ALL_CHANNELS = [...CHAT_SDK_CHANNELS, ...CUSTOM_CHANNELS];
-
 export function ChannelsPanel() {
   const [data, setData] = useState<ChannelsResponse | null>(null);
   const [loading, setLoading] = useState(true);

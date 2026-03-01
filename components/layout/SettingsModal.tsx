@@ -29,8 +29,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     if (open) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
-      setTempPath(workspacePath);
-      setTempMaxSteps(String(maxToolSteps ?? 15));
+      setTimeout(() => {
+        setTempPath(workspacePath);
+        setTempMaxSteps(String(maxToolSteps ?? 15));
+      }, 0);
       fetch("/api/config")
         .then((r) => r.json())
         .then((d) => setDefaultWorkspace(d.defaultWorkspace ?? null))

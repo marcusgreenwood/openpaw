@@ -55,9 +55,7 @@ function deriveTitleFromMessages(messages: UIMessage[]): string | null {
 
 export function ChatInterface() {
   const {
-    modelId,
     workspacePath,
-    maxToolSteps,
     activeSessionId,
     createSession,
     updateSessionTitle,
