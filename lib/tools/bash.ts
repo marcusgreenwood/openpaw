@@ -1,3 +1,11 @@
+/**
+ * @file Bash execution tool — runs shell commands inside the configured workspace directory.
+ *
+ * Includes a blocklist of dangerous command patterns, automatic virtual-environment
+ * activation for Python commands, and output-path rewriting for certain CLI tools
+ * (e.g. agent-browser screenshot/pdf) so that relative paths resolve correctly.
+ */
+
 import { tool } from "ai";
 import { z } from "zod";
 import * as path from "node:path";
@@ -5,6 +13,11 @@ import { spawn } from "node:child_process";
 import { BASH_TIMEOUT_MS } from "@/lib/chat/config";
 import { ensureVenv, getVenvEnv } from "@/lib/python-sandbox";
 
+/**
+ * Regex patterns that are unconditionally blocked before shell execution.
+ * Any command matching one of these patterns is rejected with exit code 1
+ * and a `blocked: true` flag in the result.
+ */
 export const BLOCKED_PATTERNS = [
   /rm\s+-rf\s+\//,
   /sudo\s+rm/,
@@ -24,6 +37,16 @@ const OUTPUT_PATH_REWRITE_PATTERNS: { command: string; subcommand: string }[] = 
   { command: "agent-browser", subcommand: "pdf" },
 ];
 
+/**
+ * Factory that returns an {@link tool} for executing bash commands in the workspace.
+ *
+ * The returned tool wraps every command with `cd '<workspacePath>' && <command>` so
+ * relative paths always resolve to the workspace root. A manual timeout is used
+ * (rather than the `spawn` built-in) so the entire process group is killed on expiry.
+ *
+ * @param workspacePath - Absolute or relative path to the target workspace directory.
+ * @returns A configured AI tool instance bound to the given workspace.
+ */
 export const executeBash = (workspacePath: string) =>
   tool({
     description:

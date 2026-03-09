@@ -1,3 +1,11 @@
+/**
+ * @file Code execution tool — runs JavaScript, TypeScript, or Python snippets in a
+ * temporary file sandbox inside the configured workspace directory.
+ *
+ * TypeScript is transpiled on-the-fly via `tsx`; Python uses the workspace virtual
+ * environment when available, falling back to the system `python3`.
+ */
+
 import { tool } from "ai";
 import { z } from "zod";
 import { spawn } from "node:child_process";
@@ -11,6 +19,17 @@ import {
   getVenvEnv,
 } from "@/lib/python-sandbox";
 
+/**
+ * Low-level helper that spawns a child process and collects stdout/stderr.
+ *
+ * Kills the entire process group via SIGKILL when the timeout expires so that
+ * long-running sub-processes (e.g. servers) do not linger.
+ *
+ * @param cmd     - Executable to run (e.g. `"node"`, `"python3"`, `"npx"`).
+ * @param args    - Argument list passed to the executable.
+ * @param opts    - Runtime options: working directory, environment, timeout, and language label.
+ * @returns Resolved promise with stdout, stderr, exit code, language, and timing info.
+ */
 function runSpawn(
   cmd: string,
   args: string[],
@@ -83,6 +102,15 @@ function runSpawn(
   });
 }
 
+/**
+ * Factory that returns an AI tool for executing code snippets in the workspace.
+ *
+ * The snippet is written to a uniquely named temp file, executed, and the temp
+ * directory is always deleted in a `finally` block regardless of outcome.
+ *
+ * @param workspacePath - Working directory passed to the child process.
+ * @returns A configured AI tool instance bound to the given workspace.
+ */
 export const executeCode = (workspacePath: string) =>
   tool({
     description:

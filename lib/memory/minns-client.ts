@@ -1,3 +1,12 @@
+/**
+ * @file Minns client — thin wrapper around the Minns SDK for long-term agent memory.
+ *
+ * Lazily initialises a singleton {@link MinnsClient} on first use; all public functions
+ * return empty/void results when Minns is not configured (no API key), so callers do
+ * not need to guard against a missing client. Configuration is read from the
+ * `MINNS_API_KEY` / `MINNS_PROJECT_ID` environment variables or `.claw/minns-config.json`.
+ */
+
 import { createClient, type MinnsClient, type MemoryResponse, type RecallContextResult, type ClaimSearchResponse } from "minns-sdk";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
@@ -39,6 +48,10 @@ async function loadConfig(): Promise<MinnsConfig | null> {
   return null;
 }
 
+/**
+ * Returns the singleton Minns client, initialising it on first call.
+ * Returns `null` when Minns is not configured (missing API key).
+ */
 export async function getMinnsClient(): Promise<MinnsClient | null> {
   if (_configLoaded) return _client;
   _configLoaded = true;
@@ -50,11 +63,27 @@ export async function getMinnsClient(): Promise<MinnsClient | null> {
   return _client;
 }
 
+/**
+ * Returns `true` when a Minns client has been successfully configured,
+ * `false` when no API key is present. Use this to conditionally surface
+ * memory-related UI or skip memory operations.
+ */
 export async function isMemoryEnabled(): Promise<boolean> {
   const client = await getMinnsClient();
   return client !== null;
 }
 
+/**
+ * Records a chat exchange as two Minns events: a semantic context event for the
+ * full exchange text and an action/outcome event capturing tool calls made.
+ * No-ops silently when Minns is not configured or the request fails.
+ *
+ * @param sessionId           - Session identifier (hashed to a numeric key).
+ * @param agentType           - Agent type label used as the Minns event namespace.
+ * @param userMessage         - The user's raw message text.
+ * @param assistantResponse   - The assistant's response text.
+ * @param toolCalls           - Optional list of tool names invoked during the turn.
+ */
 export async function recordChatEvent(
   sessionId: string,
   agentType: string,
@@ -88,6 +117,15 @@ export async function recordChatEvent(
   }
 }
 
+/**
+ * Runs a multi-strategy memory recall against Minns for the given query.
+ * Returns strategies, episodic memories, and claims relevant to the query.
+ * Returns an empty result when Minns is unavailable or the request fails.
+ *
+ * @param query   - Natural language query used to retrieve relevant memories.
+ * @param agentId - Optional agent ID; defaults to {@link DEFAULT_AGENT_ID}.
+ * @returns A {@link RecallContextResult} with strategies, memories, and claims.
+ */
 export async function recallMemories(
   query: string,
   agentId?: number,
@@ -116,6 +154,14 @@ export async function recallMemories(
   }
 }
 
+/**
+ * Fetches stored episodic memories for an agent from Minns.
+ * Returns an empty array when Minns is unavailable or the request fails.
+ *
+ * @param agentId - Numeric ID of the agent whose memories to retrieve.
+ * @param limit   - Maximum number of memories to return (defaults to 10).
+ * @returns Array of {@link MemoryResponse} objects.
+ */
 export async function getMemories(
   agentId: number,
   limit?: number,
@@ -130,6 +176,13 @@ export async function getMemories(
   }
 }
 
+/**
+ * Searches stored claims (facts) in Minns using semantic similarity to the query.
+ * Returns the top-5 matching claims. Returns an empty array when Minns is unavailable.
+ *
+ * @param query - Natural language query to match against stored claims.
+ * @returns Array of {@link ClaimSearchResponse} objects ranked by relevance.
+ */
 export async function searchMemoryFacts(
   query: string,
 ): Promise<ClaimSearchResponse[]> {
@@ -143,6 +196,13 @@ export async function searchMemoryFacts(
   }
 }
 
+/**
+ * Saves a piece of user context (preference, fact, or instruction) to Minns as a
+ * semantic `user_preference` context event. No-ops silently when Minns is unavailable.
+ *
+ * @param text      - The text to store as a memory.
+ * @param sessionId - Session identifier correlated with the memory (hashed internally).
+ */
 export async function saveUserContext(
   text: string,
   sessionId: string,
