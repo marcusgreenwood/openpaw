@@ -37,7 +37,7 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
 
   useEffect(() => {
     if (open) {
-      setSearch("");
+      setTimeout(() => setSearch(""), 0);
       // Focus input when palette opens (requestAnimationFrame ensures DOM is ready)
       requestAnimationFrame(() => inputRef.current?.focus());
     }

@@ -11,7 +11,6 @@ interface FieldStatus {
 }
 
 interface ChannelCardProps {
-  name: string;
   label: string;
   icon: React.ReactNode;
   enabled: boolean;
@@ -24,7 +23,6 @@ interface ChannelCardProps {
 }
 
 export function ChannelCard({
-  name,
   label,
   icon,
   enabled,

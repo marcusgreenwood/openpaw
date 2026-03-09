@@ -10,7 +10,6 @@ interface MessageListProps {
   messages: UIMessage[];
   status: "ready" | "submitted" | "streaming" | "error";
   error?: Error;
-  onSuggestion?: (text: string) => void;
   onChoiceSelect?: (option: string) => void;
   onContinue?: () => void;
   onFork?: (messageId: string) => void;
@@ -35,8 +34,7 @@ function lastMessageEndsWithToolCalls(messages: UIMessage[]): boolean {
   return true;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function MessageList({ messages, status, error, onSuggestion, onChoiceSelect, onContinue, onFork }: MessageListProps) {
+export function MessageList({ messages, status, error, onChoiceSelect, onContinue, onFork }: MessageListProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -72,10 +70,10 @@ export function MessageList({ messages, status, error, onSuggestion, onChoiceSel
     if (prev === 0 && messages.length > 0) {
       // New conversation loaded — snap immediately
       requestAnimationFrame(() => scrollToBottom("instant"));
-      setIsAtBottom(true);
+      setTimeout(() => setIsAtBottom(true), 0);
     } else if (messages.length > prev) {
       // New message added (user or assistant) — scroll down
-      setIsAtBottom(true);
+      setTimeout(() => setIsAtBottom(true), 0);
       requestAnimationFrame(() => scrollToBottom("smooth"));
     }
   }, [messages.length, scrollToBottom]);

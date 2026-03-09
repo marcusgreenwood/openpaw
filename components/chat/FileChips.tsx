@@ -29,6 +29,7 @@ export function FileChips({ files, onRemove }: FileChipsProps) {
           )}
         >
           {file.type === "image" ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={file.content}
               alt={file.name}
