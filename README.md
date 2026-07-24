@@ -155,7 +155,19 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 | `npm run dev` | Start development server |
 | `npm run build` | Build for production |
 | `npm run start` | Run production server |
+| `npm run lint` | Run ESLint (currently exits 1 on pre-existing errors) |
 | `npm run test:usage` | Run usage tracking tests |
+
+---
+
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [docs/architecture.md](docs/architecture.md) | Module layout, request flows, state, safety boundaries, extension points |
+| [docs/configuration.md](docs/configuration.md) | Every environment variable, config file, and default |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, commands, conventions, known build/lint issues |
+| [AGENTS.md](AGENTS.md) | Notes for coding agents working in this repo |
 
 ---
 
@@ -180,5 +192,6 @@ lib/                    # Core logic
   tools/                # Bash, filesystem, executeCode, cron tools
   skills/               # Skill loader and manager
 skills/                 # Built-in skills (agent-browser, coding, bash, etc.)
+docs/                   # Architecture and configuration reference
 workspace/              # Default working directory
 ```
