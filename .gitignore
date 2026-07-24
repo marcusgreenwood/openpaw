@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the secret-free template, which CONTRIBUTING.md tells you to copy.
+!.env.local.example
 
 # vercel
 .vercel

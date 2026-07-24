@@ -27,7 +27,9 @@ Channel credentials follow the same pattern in `lib/chat/config.ts`, which merge
 `process.env` over `getCachedStoredConfig()` from `lib/chat/channel-config-store.ts`.
 
 `.env.local.example` is the starting template. Copy it to `.env.local`; `.gitignore`
-excludes `.env*`, so nothing you put there is committed.
+excludes `.env*`, so nothing you put there is committed. The template itself is the
+one deliberate exception — a `!.env.local.example` negation keeps it tracked, since
+it holds only placeholders and the setup instructions depend on it existing.
 
 ---
 
@@ -132,9 +134,19 @@ curl https://api.telegram.org/bot<TOKEN>/setWebhook \
 | `WHATSAPP_ACCESS_TOKEN` | Cloud API access token |
 | `WHATSAPP_VERIFY_TOKEN` | Echoed back during Meta's `GET` verification handshake |
 | `WHATSAPP_PHONE_NUMBER_ID` | Sending phone number ID |
-| `WHATSAPP_APP_SECRET` | Payload signature verification (`lib/chat/verify.ts`) |
+
+All three are read by `getWhatsAppConfig()` in `lib/chat/config.ts`.
 
 Endpoint: `GET`/`POST /api/webhooks/whatsapp`. Subscribe to the `messages` field.
+
+> **`WHATSAPP_APP_SECRET` does nothing today.** The setup comment at the top of
+> `app/api/webhooks/whatsapp/route.ts` lists it, and `lib/chat/verify.ts` exports a
+> `verifyWhatsApp()` HMAC check that takes an app secret — but nothing calls that
+> function, and `getWhatsAppConfig()` never reads the variable. Setting it has no
+> effect, and incoming WhatsApp payload signatures are **not** verified. The `GET`
+> handshake is still checked against `WHATSAPP_VERIFY_TOKEN`; it is only the `POST`
+> payload signature that is unverified. Telegram, by contrast, is wired up:
+> `verifyTelegram()` is called from `app/api/webhooks/telegram/route.ts`.
 
 ### Slack, Discord, Google Chat — Chat SDK
 
@@ -171,8 +183,9 @@ which persists to `.claw/minns-config.json` via `app/api/memory/config/route.ts`
 `recallMemory` and `listMemories` tools are inert and no recall is injected into the
 system prompt.
 
-Neither variable appears in `.env.local.example` — set them manually or use the
-Settings UI.
+Both are commented out in `.env.local.example` — uncomment them there, set them in
+the environment directly, or use the Settings UI. See
+[Coverage of `.env.local.example`](#coverage-of-envlocalexample).
 
 ---
 
@@ -225,6 +238,38 @@ system cron:
 ```
 * * * * * curl -X POST https://your-app/api/crons/run
 ```
+
+---
+
+## Coverage of `.env.local.example`
+
+Every environment variable read anywhere under `app/`, `lib/`, `components/` and
+`scripts/` is documented above. All of them have an entry in `.env.local.example`
+except `VERCEL_URL` and `PATH`, which are explained in the caveat table below.
+
+Note that a plain grep for `process.env.NAME` will under-report: the six `CLAW_*`
+timeouts are read through `envInt(key)` and the provider keys through
+`PROVIDER_ENV_KEYS`, both of which index `process.env[key]` dynamically.
+
+Two conventions are used in the template, and the difference is not cosmetic:
+
+- **Uncommented** (`FOO=`) — the common path. Fill in a value.
+- **Commented** (`# FOO=`) — optional. The code has a working default, or the
+  feature is inert without it. Uncomment only if you need it.
+
+The commented entries are: the six `CLAW_*` timeout and limit values,
+`CLAW_WORKSPACE_DIR`, `OPENPAW_PYTHON_PATH`, `MINNS_API_KEY`, `MINNS_PROJECT_ID`,
+`GOOGLE_CHAT_SERVICE_ACCOUNT_KEY`, `GOOGLE_CHAT_PROJECT_ID`, `PORT` and
+`WHATSAPP_APP_SECRET`.
+
+Three entries need a caveat, because "present in the template" does not mean "does
+something":
+
+| Variable | Caveat |
+|----------|--------|
+| `WHATSAPP_APP_SECRET` | Read by nothing. See the note under [WhatsApp](#whatsapp--meta-cloud-api-custom-webhook). |
+| `VERCEL_URL` | Set by the platform, not by you. Mentioned in the template's Deployment comment but deliberately given no assignable entry. |
+| `PATH` | Read and rewritten by `lib/python-sandbox.ts` to point at the workspace venv. It is process state, not project configuration, so it is not in the template. |
 
 ---
 
