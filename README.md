@@ -7,12 +7,35 @@ AI agent chat app with tools, skills, scheduled tasks, and multi-channel support
 ## Core Features
 
 - **Chat** — Multi-model support (Claude, GPT, Gemini, Kimi) with streaming, tool use, and persistent sessions
-- **Tools** — Bash, filesystem, code execution, browser automation (agent-browser)
+- **Tools** — Bash, filesystem, code execution, context search, browser automation (agent-browser)
 - **Skills** — Built-in and installable skills for coding, bash, agent-browser, scheduled tasks, and more
 - **Scheduled Tasks** — Cron jobs that run bash commands or AI prompts on a schedule
+- **Workflows** — Multi-step automations (commands, conditions) with live progress streaming
+- **Branching** — Fork a conversation from any message and explore alternatives side by side
+- **Compare Mode** — Send one prompt to 2–3 models at once and pick the best response
+- **Session Sharing** — Publish a read-only session link with live viewer presence
+- **Memory** — Optional long-term memory across sessions, powered by [Minns](https://minns.ai)
+- **Live Terminal** — Real-time streaming bash output while a command is still running
+- **Attachments** — Drag-and-drop text files and images straight into the conversation
+- **Notifications** — In-app bell for cron successes and failures
 - **Workspace** — Configurable working directory for file ops and commands
 - **Channels** — Optional webhooks for Telegram, Slack, WhatsApp, Discord, Google Chat
 - **Usage Tracking** — Per-session token usage and cost estimates
+
+---
+
+## Documentation
+
+Full reference documentation lives in [`docs/`](./docs/README.md):
+
+- **[API Reference](./docs/api.md)** — every REST endpoint with params, responses, status codes, and `curl` examples
+- **[Architecture](./docs/architecture.md)** — module map, chat request lifecycle, tool execution, storage model, SSE paths
+- **[Features](./docs/features.md)** — workflows, branching, compare mode, sharing, memory, live terminal, and more
+- **[Configuration](./docs/configuration.md)** — environment variables, `.claw/` layout, workspace setup, cron scheduling
+- **[Skill Authoring](./docs/skills.md)** — `SKILL.md` format, load order, writing and managing skills
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and conventions, and
+[.env.example](./.env.example) for a copyable environment template.
 
 ---
 
@@ -34,8 +57,10 @@ AI agent chat app with tools, skills, scheduled tasks, and multi-channel support
 | `readFile` / `writeFile` | Read and write files relative to the workspace |
 | `listDirectory` / `createDirectory` | Browse and create directories |
 | `executeCode` | Run JavaScript/TypeScript and Python snippets for quick computations |
+| `searchContext` | Search the workspace for files and code relevant to a query |
 | `askChoice` | Present multiple-choice options to the user |
 | `createCron` / `updateCron` / `deleteCron` / `listCrons` | Create and manage scheduled tasks |
+| `saveMemory` / `recallMemory` / `listMemories` | Long-term memory (only useful when Minns is configured) |
 
 ---
 
@@ -155,7 +180,8 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 | `npm run dev` | Start development server |
 | `npm run build` | Build for production |
 | `npm run start` | Run production server |
-| `npm run test:usage` | Run usage tracking tests |
+| `npm run lint` | Run ESLint (exits 1 on pre-existing errors — see [CONTRIBUTING.md](./CONTRIBUTING.md)) |
+| `npm run test:usage` | Run usage tracking tests (requires `GOOGLE_GENERATIVE_AI_API_KEY`) |
 
 ---
 
@@ -163,22 +189,54 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 
 ```
 app/                    # Next.js app and API routes
-  api/
-    chat/               # Chat streaming endpoint
+  page.tsx              # Chat shell (Header + Sidebar + ChatInterface)
+  shared/[id]/          # Read-only view of a shared session
+  api/                  # 26 route handlers — see docs/api.md
+    chat/               # Chat streaming endpoint (+ compare/)
+    config/             # Default workspace
+    providers/          # AI provider key status and storage
+    sessions/           # Per-session usage, session sharing + presence
     crons/              # Cron CRUD and run
     cron-sessions/      # Sessions created by prompt crons
+    workflows/          # Workflow CRUD and SSE run endpoint
+    skills/             # List, install, edit, delete, search skills
+    memory/             # Minns memory browse and config
+    channels/           # Channel status and credentials
+    webhooks/           # Telegram, WhatsApp, and Chat SDK platforms
+    context/            # Workspace keyword search
+    terminal/           # SSE streaming bash
+    notifications/      # In-memory notification feed
     files/              # Serve workspace/public files
-    skills/             # List and install skills
-    webhooks/           # Telegram, Slack, WhatsApp webhooks
+    git/                # Git status of a directory
+    workspace/          # Validate and list a directory
 components/             # React UI
-  chat/                 # ChatInterface, MessageList, InputBar
-  layout/               # Header, Sidebar, CommandPalette, CronsPanel
-  generative-ui/       # CodeBlock, FileDiff, TerminalOutput, charts
+  chat/                 # ChatInterface, MessageList, InputBar, BranchSelector,
+                        # CompareMode, VoiceInput, SharedSessionView
+  layout/               # Header, Sidebar, CommandPalette, CronsPanel,
+                        # SettingsModal, NotificationBell, ToolAuditLog
+  generative-ui/        # CodeBlock, FileDiff, TerminalOutput, LiveTerminal, charts
+  workflows/            # WorkflowsPanel, WorkflowEditor, WorkflowRunner
+  skills/               # SkillCard, SkillEditor, SkillMarketplace
+  settings/             # ProviderKeysPanel, MemorySettings
+  channels/             # ChannelsPanel, ChannelCard
+  cat/                  # CatAvatar, CatFace
+  ui/                   # Button, Badge, GlassCard, ThemeToggle
 lib/                    # Core logic
-  chat/                 # Handler, config, session store
-  crons/                # Cron store, runner, cron sessions
-  tools/                # Bash, filesystem, executeCode, cron tools
+  chat/                 # Handler, config, API key + channel stores, session stores
+  models/               # Provider registry and model resolution
+  tools/                # Bash, filesystem, executeCode, cron, memory, context tools
   skills/               # Skill loader and manager
+  crons/                # Cron store, runner, cron sessions
+  workflows/            # Workflow types and store
+  memory/               # Minns client
+  context/              # Workspace search
+  usage/                # Per-session token usage and cost
+  store/                # Zustand stores (sessions, branches, workflows, theme, …)
+  hooks/                # useLiveTerminal, useFileAttachments, useCatReactions
+  system-prompt.ts/.md  # System prompt template and assembly
+types/                  # Shared TypeScript types
+scripts/                # test-usage, test-screenshot
+docs/                   # Reference documentation
 skills/                 # Built-in skills (agent-browser, coding, bash, etc.)
 workspace/              # Default working directory
 ```

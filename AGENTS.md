@@ -1,5 +1,19 @@
 # AGENTS.md
 
+## Reference documentation
+
+Detailed reference material lives in [`docs/`](./docs/README.md) — read it before making
+non-trivial changes rather than re-deriving the answer from source:
+
+- [`docs/api.md`](./docs/api.md) — every REST endpoint, its params, response shape, and status codes
+- [`docs/architecture.md`](./docs/architecture.md) — module map, chat lifecycle, tool execution, storage model, SSE paths
+- [`docs/features.md`](./docs/features.md) — what each shipped feature does and where its state lives
+- [`docs/configuration.md`](./docs/configuration.md) — environment variables, `.claw/` layout, workspace, cron scheduling
+- [`docs/skills.md`](./docs/skills.md) — `SKILL.md` format, load order, authoring
+
+Development setup and conventions are in [`CONTRIBUTING.md`](./CONTRIBUTING.md). Keep these
+docs in sync when you change an endpoint, an env var, or a storage key.
+
 ## Cursor Cloud specific instructions
 
 ### Overview
