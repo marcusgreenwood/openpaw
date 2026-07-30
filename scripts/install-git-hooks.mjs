@@ -38,16 +38,33 @@ if (!existsSync(hook)) bail(".husky/commit-msg is missing");
 // gitignored, so a fresh clone takes the second branch.
 const hooksPath = existsSync(join(repoRoot, ".husky", "_", "h")) ? ".husky/_" : ".husky";
 
+// Paths this script is allowed to overwrite: unset, or one it set itself. Any
+// other value is somebody else's hook setup (a .githooks/ dir, another tool) and
+// silently repointing it would disable their hooks on `npm install`.
+const OURS = new Set(["", ".husky", ".husky/_"]);
+
+let current = "";
 try {
-  const current = execFileSync("git", ["config", "--get", "core.hooksPath"], {
+  current = execFileSync("git", ["config", "--get", "core.hooksPath"], {
     cwd: repoRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
   }).trim();
-  if (current !== hooksPath) throw new Error("mismatch");
 } catch {
+  current = ""; // unset — git exits 1
+}
+
+if (current === hooksPath) {
+  // already correct
+} else if (OURS.has(current)) {
   execFileSync("git", ["config", "core.hooksPath", hooksPath], { cwd: repoRoot });
   console.error(`install-git-hooks: set core.hooksPath=${hooksPath}`);
+} else {
+  console.error(
+    `install-git-hooks: leaving core.hooksPath=${current} alone (not set by this repo).\n` +
+      `  the commit-msg hook is NOT active. To enable it:\n` +
+      `    git config core.hooksPath ${hooksPath}`,
+  );
 }
 
 // git only runs hooks that are executable.

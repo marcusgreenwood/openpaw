@@ -67,8 +67,11 @@ export const EXAMPLES = Object.freeze([
 /**
  * Trailer keys we recognise without a hyphen. Any key containing a hyphen
  * (`Co-Authored-By`, `Nightshift-Task`, `Signed-off-by`) is also treated as a
- * trailer, which keeps prose paragraphs like "Note: ..." out of the trailer
- * block.
+ * trailer key.
+ *
+ * A key alone is not enough to claim the trailer block: hyphenated words open
+ * ordinary prose too ("Non-obvious: ...", "Follow-up: ..."). See isTrailerBlock,
+ * which requires the *whole* final paragraph to parse before claiming it.
  */
 const KNOWN_TRAILER_KEYS = new Set([
   "cc",
@@ -100,6 +103,28 @@ function isTrailerKeyLine(line) {
 
 function isTrailerLine(line) {
   return isTrailerKeyLine(line) || TRAILER_CONTINUATION_RE.test(line);
+}
+
+/**
+ * Decide whether the message's final paragraph is a git trailer block.
+ *
+ * Requiring *every* line to parse (not just the first) is what separates
+ * `Nightshift-Task: x` + `Nightshift-Ref: y` from a closing prose paragraph
+ * that happens to open with a hyphenated word:
+ *
+ *     Non-obvious: the hook rewrites the file in place, so
+ *     the editor must reload it.
+ *
+ * Line 1 looks like a trailer; line 2 does not. Treating that paragraph as body
+ * prose is both the correct reading and the only one that cannot wedge an
+ * author — a paragraph we decline to claim is simply body text, never an error.
+ */
+function isTrailerBlock(paragraph) {
+  return (
+    paragraph.length > 0 &&
+    isTrailerKeyLine(paragraph[0]) &&
+    paragraph.every(isTrailerLine)
+  );
 }
 
 /**
@@ -144,12 +169,12 @@ export function splitCommitMessage(raw) {
   const subject = content[0];
   let rest = content.slice(1);
 
-  // The trailer block is the final paragraph whose first line is a trailer.
+  // The trailer block is the final paragraph, when all of it parses as trailers.
   let trailers = [];
   const lastBlank = rest.lastIndexOf("");
   const candidateStart = lastBlank === -1 ? 0 : lastBlank + 1;
   const candidate = rest.slice(candidateStart);
-  if (candidate.length > 0 && isTrailerKeyLine(candidate[0])) {
+  if (isTrailerBlock(candidate)) {
     trailers = candidate;
     rest = rest.slice(0, candidateStart);
   }
@@ -221,10 +246,19 @@ function normalizeSubject(subject, changes) {
     changes.push('inserted a single space after ":"');
   }
 
+  // Strip the whole trailing run, so an ellipsis goes too. The validator rejects
+  // any subject ending in "." with no carve-out; if the normalizer preserved
+  // "..." here the two would disagree and the author would be stuck with a
+  // message we blessed and then refused. One rule, applied in both places.
   let description = rawDescription.trim();
-  if (description.endsWith(".") && !description.endsWith("..")) {
-    description = description.slice(0, -1).trimEnd();
-    changes.push("removed trailing period from subject");
+  const trailingPeriods = /\.+$/.exec(description);
+  if (trailingPeriods) {
+    description = description.slice(0, -trailingPeriods[0].length).trimEnd();
+    changes.push(
+      trailingPeriods[0].length === 1
+        ? "removed trailing period from subject"
+        : `removed trailing "${trailingPeriods[0]}" from subject`,
+    );
   }
   if (description && shouldLowercaseFirstWord(description)) {
     description = description[0].toLowerCase() + description.slice(1);
@@ -362,13 +396,10 @@ export function validateCommitMessage(raw) {
     errors.push("subject and body must be separated by a blank line");
   }
 
-  // Trailer block must be well formed and last.
-  if (parts.trailers.length && !parts.trailers.every(isTrailerLine)) {
-    const bad = parts.trailers.find((line) => !isTrailerLine(line));
-    errors.push(
-      `malformed trailer block — every line must be "Key: value" (got "${bad}")`,
-    );
-  }
+  // No trailer-block error exists by design: splitCommitMessage only claims the
+  // final paragraph when every line of it parses, so a paragraph that does not
+  // is body prose rather than a broken trailer block. That removes a rejection
+  // an author had no way to satisfy other than rewording.
 
   for (const line of parts.body) {
     if (line.length > MAX_BODY_LINE_LENGTH) {

@@ -58,7 +58,8 @@ Optional, lowercase, and taken from the area of the codebase being touched — `
 - Imperative mood: "add", "fix", "remove" — not "added" or "adds".
 - Starts lowercase, unless the first word is an identifier, acronym or filename
   (`AGENTS.md`, `ChatInterface`, `README` are all left alone).
-- No trailing period.
+- No trailing period — and no trailing ellipsis either. The hook strips the whole trailing
+  run of `.`, so `feat: add thing...` becomes `feat: add thing`.
 - Exactly one space after the colon.
 
 ### Body and footer
@@ -68,6 +69,11 @@ Optional, lowercase, and taken from the area of the codebase being touched — `
 - Git trailers go in the final paragraph, one `Key: value` per line — `Co-Authored-By`,
   `Signed-off-by`, `Nightshift-Task`, `Nightshift-Ref`, `Closes`, `Refs`. The trailer block is
   never rewritten by the hook.
+- A paragraph counts as the trailer block only when **every** line of it is a `Key: value`
+  trailer or an indented continuation. That is deliberate: a closing prose paragraph opening
+  with a hyphenated word (`Non-obvious: ...`, `Follow-up: ...`) stays body text instead of
+  being misread as a broken trailer block. There is therefore no "malformed trailer block"
+  rejection — a paragraph we decline to claim is just prose.
 
 ### Breaking changes
 
@@ -91,13 +97,18 @@ safe deviations, rewriting the message in place and printing what it changed:
 - lowercases a mis-cased type (`Feat:` → `feat:`)
 - maps a type alias to its canonical form (`feature:` → `feat:`)
 - inserts the missing space after the colon (`feat:add x` → `feat: add x`)
-- strips a trailing period from the subject
+- strips a trailing period, or run of periods, from the subject
 - lowercases the first word of the subject when it is not an identifier or acronym
 - inserts the missing blank line between subject and body
 
 Then it **validates** and rejects with exit 1 what it cannot fix safely: a missing or unknown
-type, an empty or over-length subject, an empty scope, or a malformed trailer block. It never
-invents a type — a message with no type prefix fails rather than being guessed at.
+type, an empty or over-length subject, or an empty scope. It never invents a type — a message
+with no type prefix fails rather than being guessed at.
+
+Every rejection is one an author can act on. The rule the two halves share is that anything
+the normalizer leaves untouched must also pass validation, so the hook can never bless a
+message and then refuse it; `scripts/test-commit-message.mjs` asserts that end to end over a
+table of raw messages rather than testing the two halves only in isolation.
 
 Merge, revert, `fixup!`, `squash!` and `amend!` messages are passed through untouched, since
 git and its autosquash tooling parse those formats themselves.
@@ -142,6 +153,9 @@ npm run prepare
 
 It is a deliberate no-op outside a git work tree and when `CI` or `HUSKY=0` is set, so CI
 installs and Vercel builds are unaffected. Set `DEBUG_GIT_HOOKS=1` to see why it skipped.
+
+If you already point `core.hooksPath` somewhere of your own, the script leaves it alone and
+prints the one command to opt in — `npm install` will not quietly disable your hooks.
 
 Zero new dependencies are involved: the hook, the linter and the tests are all plain Node ESM
 scripts run by the Node already required to build the app.

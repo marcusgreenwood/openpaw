@@ -8,6 +8,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  EXAMPLES,
   MAX_SUBJECT_LENGTH,
   isExemptMessage,
   normalizeCommitMessage,
@@ -85,6 +86,27 @@ test("a prose paragraph starting with a bare word is not mistaken for trailers",
   assert.deepEqual(parts.body, ["Note: revisit", "later on"]);
 });
 
+test("a closing paragraph opening with a hyphenated word is prose, not trailers", () => {
+  // The hyphen rule alone would claim these; requiring the whole paragraph to
+  // parse is what keeps ordinary prose out of the trailer block.
+  for (const opener of ["Non-obvious", "Follow-up", "Side-effect", "Long-term"]) {
+    const raw = `feat: add thing\n\nsome body\n\n${opener}: the hook rewrites the file in\nplace, so the editor must reload it.\n`;
+    const parts = splitCommitMessage(raw);
+    assert.deepEqual(parts.trailers, [], `${opener} was claimed as a trailer block`);
+    assert.equal(parts.body.at(-1), "place, so the editor must reload it.");
+    assert.deepEqual(validateCommitMessage(raw).errors, [], `${opener} failed validation`);
+  }
+});
+
+test("an indented continuation line stays part of the trailer block", () => {
+  const raw = "feat: add thing\n\nBREAKING CHANGE: sessions stored before v0.1\n  are no longer readable.\n";
+  const parts = splitCommitMessage(raw);
+  assert.deepEqual(parts.trailers, [
+    "BREAKING CHANGE: sessions stored before v0.1",
+    "  are no longer readable.",
+  ]);
+});
+
 // ---------------------------------------------------------------------------
 // Normalization rules
 // ---------------------------------------------------------------------------
@@ -113,8 +135,9 @@ test("strips a trailing period from the subject", () => {
   assert.equal(subjectOf("feat: add thing."), "feat: add thing");
 });
 
-test("keeps an ellipsis intact", () => {
-  assert.equal(subjectOf("feat: add thing..."), "feat: add thing...");
+test("strips a trailing ellipsis too, so normalize and validate agree", () => {
+  assert.equal(subjectOf("feat: add thing..."), "feat: add thing");
+  assert.equal(subjectOf("fix: handle the thing.."), "fix: handle the thing");
 });
 
 test("lowercases a capitalized first word but not an identifier", () => {
@@ -242,11 +265,12 @@ test("rejects a missing blank line after the subject", () => {
   );
 });
 
-test("rejects a malformed trailer block", () => {
+test("a final paragraph that does not fully parse is body, not a broken trailer block", () => {
   const raw = "feat: add thing\n\nCo-Authored-By: Someone <s@example.com>\nnot a trailer at all\n";
-  const { ok, errors } = validateCommitMessage(raw);
-  assert.equal(ok, false);
-  assert.match(errors.join("\n"), /malformed trailer block/);
+  const parts = splitCommitMessage(raw);
+  assert.deepEqual(parts.trailers, []);
+  assert.deepEqual(parts.body, ["Co-Authored-By: Someone <s@example.com>", "not a trailer at all"]);
+  assert.equal(validateCommitMessage(raw).ok, true);
 });
 
 test("warns but does not fail on long body lines", () => {
@@ -255,6 +279,80 @@ test("warns but does not fail on long body lines", () => {
   assert.equal(ok, true);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /exceeds 100 characters/);
+});
+
+// ---------------------------------------------------------------------------
+// The composed pipeline — exactly what scripts/commit-msg.mjs runs.
+//
+// The halves above are tested in isolation, which cannot catch the two of them
+// disagreeing: a message the normalizer leaves alone and the validator then
+// refuses is an unfixable rejection with no way out but rewording. These cases
+// run normalize -> validate together and assert the verdict the author sees.
+// ---------------------------------------------------------------------------
+
+/** @returns {{ok: boolean, errors: string[], text: string}} the hook's verdict. */
+function hookVerdict(raw) {
+  const { text } = normalizeCommitMessage(raw);
+  return { ...validateCommitMessage(text), text };
+}
+
+const ACCEPTED_BY_HOOK = [
+  "feat: add voice mode input component\n",
+  "Feat:Add Thing.\n",
+  "feature: Add thing\n",
+  "fix: handle the thing...\n", // regression: normalizer used to keep "..." and the validator refused it
+  "fix: handle the thing..\n",
+  "chore(deps): bump next to 16.1.6\n",
+  "feat(api)!: drop the legacy session format\n",
+  "docs: AGENTS.md gains a commit section\n",
+  "feat: add thing\nthe body ran on from the subject\n",
+  "feat: add thing\n\n\n\nbody   \n\n\n",
+  "feat: add thing\n\nbody\n\nNightshift-Task: commit-normalize\nNightshift-Ref: https://github.com/marcus/nightshift\n",
+  // A closing prose paragraph opening with a hyphenated word.
+  "feat: add thing\n\nNon-obvious: the hook rewrites the file in place, so\nthe editor must reload it.\n",
+  "feat: add thing\n\nFollow-up: wire the range linter into CI.\n",
+  "feat: add thing\n# On branch main\n",
+  "Merge branch 'main' into feature\n",
+  "fixup! feat: add thing\n",
+];
+
+const REJECTED_BY_HOOK = [
+  "random subject with no type\n",
+  "Add a 3D cat avatar\n",
+  "wip: half-finished thing\n",
+  "feat:\n",
+  "feat(): add thing\n",
+  "feat: ...\n", // nothing but periods — stripping leaves an empty description
+  `feat: ${"x".repeat(MAX_SUBJECT_LENGTH)}\n`,
+];
+
+for (const raw of ACCEPTED_BY_HOOK) {
+  test(`hook accepts ${JSON.stringify(raw)}`, () => {
+    const { ok, errors } = hookVerdict(raw);
+    assert.equal(ok, true, `unfixable rejection: ${errors.join("; ")}`);
+  });
+}
+
+for (const raw of REJECTED_BY_HOOK) {
+  test(`hook rejects ${JSON.stringify(raw)}`, () => {
+    const { ok, errors } = hookVerdict(raw);
+    assert.equal(ok, false, "expected a rejection");
+    assert.ok(errors.length > 0, "a rejection must explain itself");
+  });
+}
+
+test("every accepted message is a fixed point: re-running the hook changes nothing", () => {
+  for (const raw of ACCEPTED_BY_HOOK) {
+    const once = hookVerdict(raw).text;
+    const twice = hookVerdict(once).text;
+    assert.equal(twice, once, `not a fixed point: ${JSON.stringify(raw)}`);
+  }
+});
+
+test("the examples printed in the hook's error output themselves pass the hook", () => {
+  for (const example of EXAMPLES) {
+    assert.equal(hookVerdict(`${example}\n`).ok, true, `bad example: ${example}`);
+  }
 });
 
 // ---------------------------------------------------------------------------
