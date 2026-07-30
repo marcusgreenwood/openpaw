@@ -113,6 +113,18 @@ table of raw messages rather than testing the two halves only in isolation.
 Merge, revert, `fixup!`, `squash!` and `amend!` messages are passed through untouched, since
 git and its autosquash tooling parse those formats themselves.
 
+Lines beginning with `#`, and everything after git's `>8` scissors line, are left exactly where
+they are — never reordered, never reindented. This matters because `#` lines are not always
+comments: git only strips them under `--cleanup=strip` (what you get when composing in an
+editor), whereas the default for `git commit -m` and `-F` is `--cleanup=whitespace`, which keeps
+them as ordinary body content. A `#` in column 1 of the *first* line is therefore treated as a
+subject and linted, not as a comment — git's editor template always opens with a blank line, so
+a leading `#` is never git's.
+
+The whitespace fixes above are the same ones git's own cleanup applies in either mode, so they
+never alter the message that actually gets committed. Any rewrite at all is reported; the hook
+will not change your message and say nothing.
+
 ### Range linting
 
 ```bash

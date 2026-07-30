@@ -128,29 +128,54 @@ function isTrailerBlock(paragraph) {
 }
 
 /**
- * Split a raw commit message file into its parts.
+ * Is this line one of git's own comment lines rather than message content?
  *
- * Comment lines (`#...`) and everything from git's scissors line onward are
- * pulled out verbatim and re-emitted untouched — they are git's, not ours.
- *
- * @param {string} raw
- * @returns {{subject: string, body: string[], trailers: string[], comments: string[]}}
+ * Everything starting with `#` is — except on line 1. Git's editor template is
+ * only ever *appended* to the message, and always opens with a blank line, so a
+ * `#` in the very first column of the very first line is never git's. Under the
+ * default cleanup for `-m`/`-F` (`whitespace`) such a line is a real subject,
+ * so we lint it rather than treating the message as empty and skipping it.
  */
-export function splitCommitMessage(raw) {
+function isCommentLine(line, index) {
+  return index > 0 && line.startsWith("#");
+}
+
+/** Split into lines, tolerating CRLF. The final newline is not a line. */
+function splitLines(raw) {
   const lines = String(raw ?? "")
     .split("\n")
     .map((line) => (line.endsWith("\r") ? line.slice(0, -1) : line));
+  if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+  return lines;
+}
 
-  // Pull out comments / the verbose diff.
+/**
+ * Split a raw commit message file into its parts.
+ *
+ * `subject`, `body` and `trailers` are the *content* view used for validation:
+ * comment lines and everything from git's scissors line onward are set aside in
+ * `comments`, because git does not commit them. `content` is every content line
+ * before that filtering, which is what the blank-line rules are judged against.
+ *
+ * This view is for reading the message, never for rewriting it —
+ * `normalizeCommitMessage` edits the original lines in place so that nothing
+ * can be reordered. See the note there.
+ *
+ * @param {string} raw
+ * @returns {{subject: string, body: string[], trailers: string[], comments: string[], content: string[]}}
+ */
+export function splitCommitMessage(raw) {
+  const lines = splitLines(raw);
+
   const content = [];
   const comments = [];
   let inScissors = false;
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     if (inScissors) {
       comments.push(line);
       continue;
     }
-    if (line.startsWith("#")) {
+    if (isCommentLine(line, index)) {
       if (line.includes(SCISSORS)) inScissors = true;
       comments.push(line);
       continue;
@@ -159,15 +184,16 @@ export function splitCommitMessage(raw) {
   }
 
   // Drop leading and trailing blank content lines.
-  while (content.length && content[0].trim() === "") content.shift();
-  while (content.length && content[content.length - 1].trim() === "") content.pop();
+  const trimmed = content.slice();
+  while (trimmed.length && trimmed[0].trim() === "") trimmed.shift();
+  while (trimmed.length && trimmed[trimmed.length - 1].trim() === "") trimmed.pop();
 
-  if (content.length === 0) {
-    return { subject: "", body: [], trailers: [], comments };
+  if (trimmed.length === 0) {
+    return { subject: "", body: [], trailers: [], comments, content };
   }
 
-  const subject = content[0];
-  let rest = content.slice(1);
+  const subject = trimmed[0];
+  let rest = trimmed.slice(1);
 
   // The trailer block is the final paragraph, when all of it parses as trailers.
   let trailers = [];
@@ -182,7 +208,7 @@ export function splitCommitMessage(raw) {
   while (rest.length && rest[rest.length - 1].trim() === "") rest.pop();
   while (rest.length && rest[0].trim() === "") rest.shift();
 
-  return { subject, body: rest, trailers, comments };
+  return { subject, body: rest, trailers, comments, content };
 }
 
 // ---------------------------------------------------------------------------
@@ -266,24 +292,29 @@ function normalizeSubject(subject, changes) {
   }
 
   const scope = rawScope === undefined ? "" : `(${rawScope.trim()})`;
-  return `${type}${scope}${bang ?? ""}: ${description}`;
+  const head = `${type}${scope}${bang ?? ""}:`;
+  // No trailing space when there is nothing to say — validation rejects the
+  // empty description anyway, but it should not be reported as a stray space.
+  return description === "" ? head : `${head} ${description}`;
 }
 
-function normalizeBody(body, changes) {
-  const trimmed = body.map((line) => line.replace(/[ \t]+$/, ""));
-  if (trimmed.some((line, i) => line !== body[i])) {
-    changes.push("trimmed trailing whitespace");
-  }
+/**
+ * Drop leading and trailing blank lines, then collapse interior runs of blanks
+ * to one. Reports the collapse but not the edge trim: git performs both itself
+ * under either default cleanup mode, and every message file ends with a newline,
+ * so reporting the edges would fire on almost every commit for no reason.
+ */
+function normalizeBlankLines(lines, changes) {
+  const out = lines.slice();
+  while (out.length && out[0] === "") out.shift();
+  while (out.length && out[out.length - 1] === "") out.pop();
 
   const collapsed = [];
-  for (const line of trimmed) {
+  for (const line of out) {
     if (line === "" && collapsed[collapsed.length - 1] === "") continue;
     collapsed.push(line);
   }
-  if (collapsed.length !== trimmed.length) changes.push("collapsed blank lines");
-
-  while (collapsed.length && collapsed[0] === "") collapsed.shift();
-  while (collapsed.length && collapsed[collapsed.length - 1] === "") collapsed.pop();
+  if (collapsed.length !== out.length) changes.push("collapsed blank lines");
   return collapsed;
 }
 
@@ -291,27 +322,62 @@ function normalizeBody(body, changes) {
  * Apply every safe, content-preserving fix. Never invents a type, never edits
  * the trailer block or comment lines.
  *
+ * The message is rewritten by editing its lines *in place* — never by taking
+ * the parsed subject/body/trailer view apart and reassembling it. Reassembly
+ * has to put the comment lines back somewhere, and putting them anywhere but
+ * where the author left them is a silent rewrite of the commit: git only
+ * discards `#` lines under `--cleanup=strip` (editor mode), whereas the default
+ * for `-m`/`-F` is `--cleanup=whitespace`, which keeps them as body content.
+ * Editing in place cannot reorder anything, so it is correct under both.
+ *
+ * The blank-line and trailing-whitespace rules below are exactly what git's own
+ * cleanup does in either mode, so they never change the committed message.
+ *
  * @param {string} raw
  * @returns {{text: string, changes: string[]}}
  */
 export function normalizeCommitMessage(raw) {
   const changes = [];
-  if (isExemptMessage(raw)) return { text: String(raw ?? ""), changes };
+  const original = String(raw ?? "");
+  if (isExemptMessage(original)) return { text: original, changes };
 
-  const parts = splitCommitMessage(raw);
-  const subject = normalizeSubject(parts.subject, changes);
-  const body = normalizeBody(parts.body, changes);
+  const lines = splitLines(original);
 
-  const out = [subject];
-  if (body.length) out.push("", ...body);
-  if (parts.trailers.length) out.push("", ...parts.trailers);
-  if (parts.comments.length) out.push(...parts.comments);
+  // Everything from the scissors line onward is the verbose diff git appended.
+  // Not ours to touch, not even for whitespace.
+  const scissorsAt = lines.findIndex(
+    (line, index) => isCommentLine(line, index) && line.includes(SCISSORS),
+  );
+  const head = scissorsAt === -1 ? lines : lines.slice(0, scissorsAt);
+  const tail = scissorsAt === -1 ? [] : lines.slice(scissorsAt);
 
-  if (missingBlankSeparator(raw)) {
+  const trimmed = head.map((line) => line.replace(/[ \t]+$/, ""));
+  if (trimmed.some((line, i) => line !== head[i])) {
+    changes.push("trimmed trailing whitespace");
+  }
+
+  // isExemptMessage covers the no-content case, so a subject line exists here.
+  const subjectAt = trimmed.findIndex(
+    (line, index) => !isCommentLine(line, index) && line.trim() !== "",
+  );
+  trimmed[subjectAt] = normalizeSubject(trimmed[subjectAt], changes);
+
+  const parts = splitCommitMessage(original);
+  if (missingBlankSeparator(parts)) {
+    trimmed.splice(subjectAt + 1, 0, "");
     changes.push("inserted blank line between subject and body");
   }
 
-  return { text: `${out.join("\n")}\n`, changes };
+  const out = [...normalizeBlankLines(trimmed, changes), ...tail];
+  const text = `${out.join("\n")}\n`;
+
+  // A rewrite the author is never told about is how a body quietly loses a line.
+  // Nothing above should reach here silently; this is the backstop that says so.
+  if (changes.length === 0 && text !== original && text !== `${original}\n`) {
+    changes.push("tidied blank lines");
+  }
+
+  return { text, changes };
 }
 
 // ---------------------------------------------------------------------------
@@ -319,14 +385,12 @@ export function normalizeCommitMessage(raw) {
 // ---------------------------------------------------------------------------
 
 /**
- * True when the raw message runs the body straight on from the subject with no
- * blank separator (comment lines ignored).
+ * True when the message runs the body straight on from the subject with no
+ * blank separator. Takes a `splitCommitMessage` result so it judges the same
+ * content lines — comments excluded — that everything else here does.
  */
-function missingBlankSeparator(raw) {
-  const content = String(raw ?? "")
-    .split("\n")
-    .map((line) => (line.endsWith("\r") ? line.slice(0, -1) : line))
-    .filter((line) => !line.startsWith("#"));
+function missingBlankSeparator(parts) {
+  const content = parts.content;
   let i = 0;
   while (i < content.length && content[i].trim() === "") i += 1;
   const second = content[i + 1];
@@ -367,7 +431,7 @@ export function validateCommitMessage(raw) {
         `unknown type "${rawType}"${hint ? ` (did you mean "${hint}"?)` : ""} — allowed: ${Object.keys(TYPES).join(", ")}`,
       );
     }
-    if (gap !== " ") {
+    if (gap !== " " && description.trim() !== "") {
       errors.push('the colon must be followed by exactly one space ("feat: add x")');
     }
     if (description.trim() === "") {
@@ -392,7 +456,7 @@ export function validateCommitMessage(raw) {
     );
   }
 
-  if (missingBlankSeparator(raw)) {
+  if (missingBlankSeparator(parts)) {
     errors.push("subject and body must be separated by a blank line");
   }
 

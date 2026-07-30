@@ -34,8 +34,10 @@ const hook = join(repoRoot, ".husky", "commit-msg");
 if (!existsSync(hook)) bail(".husky/commit-msg is missing");
 
 // Both layouts resolve to .husky/commit-msg: husky's `_` shim dispatches to the
-// sibling user hook, and pointing straight at .husky runs it directly. `_` is
-// gitignored, so a fresh clone takes the second branch.
+// sibling user hook, and pointing straight at .husky runs it directly. Only
+// .husky/commit-msg is tracked here — husky is not a dependency, and any `_`
+// left over from a previous install is untracked (husky writes .husky/_/.gitignore
+// containing `*`). So a fresh clone has no `_` and takes the second branch.
 const hooksPath = existsSync(join(repoRoot, ".husky", "_", "h")) ? ".husky/_" : ".husky";
 
 // Paths this script is allowed to overwrite: unset, or one it set itself. Any

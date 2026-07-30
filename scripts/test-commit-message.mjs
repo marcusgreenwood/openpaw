@@ -213,6 +213,121 @@ test("preserves comment lines verbatim and keeps them out of the body", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Comment placement
+//
+// Under `--cleanup=strip` (editor mode) git deletes `#` lines, so where we put
+// them back is invisible. Under `--cleanup=whitespace` — git's default for
+// `-m`/`-F` — they are ordinary body content that git keeps exactly where the
+// author put it, so moving them silently rewrites the message.
+// ---------------------------------------------------------------------------
+
+test("a # line inside the body keeps its position", () => {
+  const raw = [
+    "fix: address the review findings",
+    "",
+    "# Findings",
+    "- the first thing",
+    "- the second thing",
+    "",
+  ].join("\n");
+  const { text, changes } = normalizeCommitMessage(raw);
+  assert.equal(text, raw, "the body was reordered");
+  assert.deepEqual(changes, [], "a rewrite with nothing to report is a silent rewrite");
+});
+
+test("a # line between two body paragraphs stays between them", () => {
+  // Including the blank lines around it: git's whitespace cleanup collapses
+  // runs of blanks but does not treat a comment as invisible when doing so.
+  const raw = "feat: add thing\n\nfirst para\n\n# a note\n\nsecond para\n";
+  const { text, changes } = normalizeCommitMessage(raw);
+  assert.equal(text, raw);
+  assert.deepEqual(changes, []);
+});
+
+test("a # line before the subject stays before it", () => {
+  const { text } = normalizeCommitMessage("feat: add thing\n");
+  assert.equal(text, "feat: add thing\n");
+  const withLead = normalizeCommitMessage("feat: add thing\n\n# note\nbody\n").text;
+  assert.equal(withLead.split("\n")[2], "# note", withLead);
+});
+
+test("git's trailing template block still lands at the end", () => {
+  // Exactly how git lays out COMMIT_EDITMSG: message, then the comment block.
+  const raw = [
+    "Feat:Add thing.",
+    "",
+    "the body",
+    "",
+    "# Please enter the commit message for your changes. Lines starting",
+    "# with '#' will be ignored, and an empty message aborts the commit.",
+    "#",
+    "# On branch main",
+    "",
+  ].join("\n");
+  const { text } = normalizeCommitMessage(raw);
+  assert.equal(
+    text,
+    [
+      "feat: add thing",
+      "",
+      "the body",
+      "",
+      "# Please enter the commit message for your changes. Lines starting",
+      "# with '#' will be ignored, and an empty message aborts the commit.",
+      "#",
+      "# On branch main",
+      "",
+    ].join("\n"),
+  );
+});
+
+test("the verbose scissors section is preserved as a trailing block", () => {
+  const raw = [
+    "feat: add thing",
+    "",
+    "# ------------------------ >8 ------------------------",
+    "# Do not modify or remove the line above.",
+    "diff --git a/a.txt b/a.txt",
+    "+hello",
+    "",
+  ].join("\n");
+  const { text } = normalizeCommitMessage(raw);
+  // Everything from the scissors on is git's, kept verbatim and in order.
+  assert.ok(text.includes("diff --git a/a.txt b/a.txt\n+hello"), text);
+  assert.equal(text.split("\n")[0], "feat: add thing");
+  assert.equal(validateCommitMessage(text).ok, true);
+});
+
+test("an empty message plus git's template is still exempt, not a bogus subject", () => {
+  const raw = "\n# Please enter the commit message for your changes. Lines starting\n# with '#' will be ignored.\n";
+  assert.equal(isExemptMessage(raw), true);
+  assert.equal(normalizeCommitMessage(raw).text, raw, "a template-only file must not be rewritten");
+});
+
+test("a # on line 1 is a subject, not a comment, so it gets linted", () => {
+  // Git's template is only ever appended and always opens with a blank line, so
+  // a `#` in column 1 of line 1 is the author's content. `git commit -m` keeps
+  // it (cleanup=whitespace); skipping the message as empty would let it through.
+  assert.equal(isExemptMessage("#123 fix the thing\n"), false);
+  const { ok, errors } = validateCommitMessage("#123 fix the thing\n");
+  assert.equal(ok, false);
+  assert.match(errors.join("\n"), /missing a "<type>: " prefix/);
+});
+
+test("normalization stays idempotent with comments interleaved", () => {
+  const inputs = [
+    "fix: address the findings\n\n# Findings\n- one\n- two\n",
+    "feat: add thing\n\nfirst\n\n# note\n\nsecond\n",
+    "Feat:Add thing.\n\nbody\n\n# On branch main\n",
+    "#123 fix the thing\n",
+  ];
+  for (const input of inputs) {
+    const once = normalize(input);
+    assert.equal(normalize(once), once, `not idempotent for ${JSON.stringify(input)}`);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Rejections
 // ---------------------------------------------------------------------------
 
