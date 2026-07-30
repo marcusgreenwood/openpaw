@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:commits": "node scripts/lint-commits.mjs",
     "test:usage": "tsx scripts/test-usage.ts",
+    "test:commit-msg": "node --test scripts/test-commit-message.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs",
     "postinstall": "npx agent-browser install"
   },
   "dependencies": {
