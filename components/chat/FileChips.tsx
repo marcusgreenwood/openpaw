@@ -29,6 +29,9 @@ export function FileChips({ files, onRemove }: FileChipsProps) {
           )}
         >
           {file.type === "image" ? (
+            // `file.content` is a client-side data URL for a just-attached file,
+            // so next/image optimization does not apply here.
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={file.content}
               alt={file.name}

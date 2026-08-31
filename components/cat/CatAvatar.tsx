@@ -79,13 +79,21 @@ export function CatAvatar() {
     return () => clearTimeout(idleTimerRef.current);
   }, [mood, setMood]);
 
-  // Show bubble briefly when mood changes
+  // Show bubble briefly when mood changes. The "did it change?" comparison is
+  // done during render (React's adjust-state-on-prop-change pattern) so the
+  // 4s auto-hide effect below only ever calls setState from a timer callback.
+  const moodKey = `${mood}\u0000${message ?? ""}`;
+  const [lastMoodKey, setLastMoodKey] = useState(moodKey);
+  if (moodKey !== lastMoodKey) {
+    setLastMoodKey(moodKey);
+    if (mood !== "idle") setShowBubble(true);
+  }
+
   useEffect(() => {
-    if (mood === "idle") return;
-    setShowBubble(true);
+    if (!showBubble || mood === "idle") return;
     const t = setTimeout(() => setShowBubble(false), 4000);
     return () => clearTimeout(t);
-  }, [mood, message]);
+  }, [showBubble, mood, moodKey]);
 
   if (!visible) return null;
 

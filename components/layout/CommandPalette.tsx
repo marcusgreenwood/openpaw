@@ -14,6 +14,15 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
+  // The palette body is only mounted while open, so its `search` state starts
+  // empty on every open without an effect resetting it.
+  if (!open) return null;
+  return <CommandPaletteContent onOpenChange={onOpenChange} />;
+}
+
+function CommandPaletteContent({
+  onOpenChange,
+}: Pick<CommandPaletteProps, "onOpenChange">) {
   const {
     sessions,
     cronSessions,
@@ -36,14 +45,9 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      setSearch("");
-      // Focus input when palette opens (requestAnimationFrame ensures DOM is ready)
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
-  }, [open]);
-
-  if (!open) return null;
+    // Focus input when palette opens (requestAnimationFrame ensures DOM is ready)
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
 
   return (
     <div className="fixed inset-0 z-[100]">

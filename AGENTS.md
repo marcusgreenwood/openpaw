@@ -12,7 +12,7 @@ See `package.json` scripts and `README.md` for full details:
 
 - **Dev server:** `npm run dev` (port 3000)
 - **Build:** `npm run build`
-- **Lint:** `npm run lint` (ESLint; has pre-existing warnings/errors in the repo)
+- **Lint:** `npm run lint` (ESLint; currently clean — no warnings or errors)
 - **Test:** `npm run test:usage` (usage tracking tests; requires `GOOGLE_GENERATIVE_AI_API_KEY`)
 
 ### Key caveats
@@ -21,7 +21,6 @@ See `package.json` scripts and `README.md` for full details:
 - The `postinstall` script runs `npx agent-browser install` which downloads Chromium (~280 MB). This is expected and normal.
 - At least one LLM API key must be configured for chat to work. Keys can be set via environment variables (`GOOGLE_GENERATIVE_AI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `MOONSHOT_API_KEY`) or through the in-app Settings UI. The default model may not match your configured key — use the model selector (top-right) to switch to a provider you have configured.
 - Chat state is stored in browser `localStorage` (Zustand/persist). Server-side config (API keys, crons, Minns memory) is stored as JSON files in `.claw/` directory.
-- The lint command (`npm run lint`) exits with code 1 due to pre-existing `react-hooks/set-state-in-effect` errors — this is a known issue in the repo, not an environment problem.
 
 ### LiveTerminal (streaming bash output)
 

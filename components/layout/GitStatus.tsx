@@ -30,9 +30,14 @@ export function GitStatus() {
   }, [workspacePath]);
 
   useEffect(() => {
-    fetchStatus();
+    // Kick the first poll off on the next tick rather than synchronously in the
+    // effect body, so every setData() happens from a timer/promise callback.
+    const initial = setTimeout(fetchStatus, 0);
     const interval = setInterval(fetchStatus, 10000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initial);
+      clearInterval(interval);
+    };
   }, [fetchStatus]);
 
   if (!data?.isRepo) return null;

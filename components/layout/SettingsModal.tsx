@@ -15,34 +15,56 @@ interface SettingsModalProps {
 type SettingsTab = "workspace" | "providers" | "memory" | "channels";
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
+  // `tab` lives here so the selected tab survives close/reopen, while the modal
+  // body is only mounted while open — that lets the draft fields below seed
+  // themselves from the store on mount instead of via a setState in an effect.
   const [tab, setTab] = useState<SettingsTab>("workspace");
+
+  if (!open) return null;
+  return <SettingsModalContent onClose={onClose} tab={tab} setTab={setTab} />;
+}
+
+interface SettingsModalContentProps {
+  onClose: () => void;
+  tab: SettingsTab;
+  setTab: (tab: SettingsTab) => void;
+}
+
+function SettingsModalContent({ onClose, tab, setTab }: SettingsModalContentProps) {
   const { workspacePath, setWorkspacePath, maxToolSteps, setMaxToolSteps, toolApprovalMode, setToolApprovalMode } =
     useSessionsStore();
   const [tempPath, setTempPath] = useState(workspacePath);
   const [tempMaxSteps, setTempMaxSteps] = useState(String(maxToolSteps ?? 15));
   const [defaultWorkspace, setDefaultWorkspace] = useState<string | null>(null);
 
+  // Escape-to-close + scroll lock, active for as long as the modal is open.
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    if (open) {
-      document.addEventListener("keydown", handleEscape);
-      document.body.style.overflow = "hidden";
-      setTempPath(workspacePath);
-      setTempMaxSteps(String(maxToolSteps ?? 15));
-      fetch("/api/config")
-        .then((r) => r.json())
-        .then((d) => setDefaultWorkspace(d.defaultWorkspace ?? null))
-        .catch(() => setDefaultWorkspace(null));
-    }
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [open, onClose, workspacePath, maxToolSteps]);
+  }, [onClose]);
 
-  if (!open) return null;
+  // Load the server-configured default workspace once per open.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setDefaultWorkspace(d.defaultWorkspace ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setDefaultWorkspace(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const tabs: { id: SettingsTab; label: string; icon: React.ReactNode }[] = [
     {
