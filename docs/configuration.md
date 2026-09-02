@@ -31,7 +31,24 @@ Each provider maps to exactly one variable via `PROVIDER_ENV_KEYS`. Only configu
 | `GOOGLE_GENERATIVE_AI_API_KEY` | `google` | Gemini 3.1 Pro, Gemini 3 Pro, Gemini 3 Flash, Gemini 2.5 Pro/Flash |
 | `MOONSHOT_API_KEY` | `moonshotai` | Kimi K2.5, K2 Turbo, K2 Thinking |
 
-The full model list lives in `PROVIDER_REGISTRY` (`lib/models/providers.ts`); the default is `anthropic/claude-sonnet-4-6`.
+The full model list lives in `PROVIDER_REGISTRY` (`lib/models/providers.ts`).
+
+### Default model: two values in the source
+
+There is no single default model id. The codebase carries two, and only one of them is a registered model:
+
+| Value | Where | Reached when |
+|---|---|---|
+| `anthropic/claude-sonnet-4-6` | `DEFAULT_MODEL_ID` (`lib/models/providers.ts:109`) | New browser sessions (`lib/store/sessions.ts`), crons without an explicit `modelId` (`lib/crons/runner.ts`), and the Chat SDK bot (`lib/bot.ts`) |
+| `anthropic/claude-sonnet-4-5` | Inline parameter defaults in `app/api/chat/route.ts:11`, `lib/chat/handler.ts:205` and `:268`, and `lib/chat/session-store.ts:55` | Any caller that omits `modelId` |
+
+**`anthropic/claude-sonnet-4-5` is not in `PROVIDER_REGISTRY`.** `resolveModel` (`lib/models/providers.ts:113`) splits the id on `/`, dispatches on the provider half, and passes the model half verbatim to the provider SDK — it never checks the registry — so an unregistered id is forwarded to Anthropic rather than rejected locally.
+
+This is not purely theoretical. The Telegram and WhatsApp webhooks call `getOrCreateSession(channel, userId)` without a `modelId` (`app/api/webhooks/telegram/route.ts:134`, `app/api/webhooks/whatsapp/route.ts:175`), so those channels run every turn on `anthropic/claude-sonnet-4-5`. The browser path is unaffected, because the client always sends the session's `modelId`, which is seeded from `DEFAULT_MODEL_ID` — the `/api/chat` fallback is dead code for the UI.
+
+One knock-on effect: cost accounting looks the model up by its name half in `llm-cost-utils`, and an unpriced model is caught and recorded with `costUsd: 0` (`lib/usage/session-usage-store.ts:167`), so usage on an unregistered id can show tokens but no cost.
+
+Documented as-is rather than reconciled — this reference describes current behaviour and makes no source changes.
 
 The UI equivalent is **Settings → API Keys** (`POST /api/providers`), which stores keys in `.claw/api-keys.json`.
 

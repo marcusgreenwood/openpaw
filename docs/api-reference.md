@@ -48,7 +48,7 @@ Request body:
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `messages` | `UIMessage[]` | `[]` | Non-array values are coerced to `[]` |
-| `modelId` | `string` | `"anthropic/claude-sonnet-4-5"` | `provider/model` form |
+| `modelId` | `string` | `"anthropic/claude-sonnet-4-5"` [^default-model] | `provider/model` form |
 | `workspacePath` | `string` | `DEFAULT_WORKSPACE` | Absolute or project-relative |
 | `sessionId` | `string` | — | Used for usage accounting and memory recording |
 | `maxToolSteps` | `number` | `MAX_TOOL_STEPS` (15) | Overrides the per-request agentic step cap |
@@ -56,6 +56,8 @@ Request body:
 Response: the result of `streamText(...).toUIMessageStreamResponse()`. The handler stops when either the step cap is reached or the `askChoice` tool is called (`stopWhen: [stepCountIs(steps), hasToolCall("askChoice")]`).
 
 The route itself performs no validation and returns no error statuses — malformed input surfaces as a thrown error from `handleChatStreaming`. See [architecture.md](./architecture.md) for what `handleChatStreaming` does.
+
+[^default-model]: This fallback is `anthropic/claude-sonnet-4-5`, which is **not** the value of `DEFAULT_MODEL_ID` (`anthropic/claude-sonnet-4-6`) and is not present in `PROVIDER_REGISTRY` at all. The browser never reaches it — it always sends the session's `modelId`, seeded from `DEFAULT_MODEL_ID` — but the Telegram and WhatsApp webhooks do reach the same `-4-5` default via `getOrCreateSession`. `resolveModel` forwards any model name verbatim to the provider without consulting the registry. See [configuration.md](./configuration.md#default-model-two-values-in-the-source).
 
 ### `POST /api/chat/compare`
 
