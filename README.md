@@ -4,12 +4,33 @@ AI agent chat app with tools, skills, scheduled tasks, and multi-channel support
 
 ---
 
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [docs/api-reference.md](docs/api-reference.md) | Every HTTP endpoint: parameters, request/response shapes, status codes |
+| [docs/tools.md](docs/tools.md) | The 15 agent tools, their schemas, and the bash safety denylist |
+| [docs/configuration.md](docs/configuration.md) | Environment variables, env-vs-UI precedence, and server-side state files |
+| [docs/architecture.md](docs/architecture.md) | Chat-turn flow, module map, skills loading, multi-channel path |
+| [docs/workflows.md](docs/workflows.md) | The Workflows subsystem: step types, branching, execution, storage |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, scripts, known lint baseline, and how to add tools/routes/skills |
+
+---
+
 ## Core Features
 
 - **Chat** — Multi-model support (Claude, GPT, Gemini, Kimi) with streaming, tool use, and persistent sessions
-- **Tools** — Bash, filesystem, code execution, browser automation (agent-browser)
+- **Tools** — Bash, filesystem, code execution, workspace search, browser automation (agent-browser)
 - **Skills** — Built-in and installable skills for coding, bash, agent-browser, scheduled tasks, and more
 - **Scheduled Tasks** — Cron jobs that run bash commands or AI prompts on a schedule
+- **Workflows** — Multi-step command / prompt / condition pipelines run from the sidebar ([docs](docs/workflows.md))
+- **Compare Mode** — Send one prompt to 2–3 models side by side and pick a winner
+- **Memory** — Optional long-term memory via [Minns](https://minns.ai): recall before each turn, record after
+- **Notifications** — In-app feed of cron successes and failures
+- **Session Sharing** — Publish a session to a read-only `/shared/<id>` page with live viewer presence
+- **Git Status** — Branch and working-tree state for the workspace, in the sidebar
+- **Voice Input** — Dictate messages into the input bar
+- **Command Palette** — ⌘K / Ctrl-K for quick send, session switching, and model changes
 - **Workspace** — Configurable working directory for file ops and commands
 - **Channels** — Optional webhooks for Telegram, Slack, WhatsApp, Discord, Google Chat
 - **Usage Tracking** — Per-session token usage and cost estimates
@@ -36,6 +57,10 @@ AI agent chat app with tools, skills, scheduled tasks, and multi-channel support
 | `executeCode` | Run JavaScript/TypeScript and Python snippets for quick computations |
 | `askChoice` | Present multiple-choice options to the user |
 | `createCron` / `updateCron` / `deleteCron` / `listCrons` | Create and manage scheduled tasks |
+| `searchContext` | Keyword-search the workspace for relevant files and code |
+| `saveMemory` / `recallMemory` / `listMemories` | Long-term memory (requires Minns to be configured) |
+
+Full schemas and return values: [docs/tools.md](docs/tools.md).
 
 ---
 
@@ -155,6 +180,7 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 | `npm run dev` | Start development server |
 | `npm run build` | Build for production |
 | `npm run start` | Run production server |
+| `npm run lint` | Run ESLint (see [CONTRIBUTING.md](CONTRIBUTING.md) for the known baseline failure) |
 | `npm run test:usage` | Run usage tracking tests |
 
 ---
@@ -163,22 +189,47 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 
 ```
 app/                    # Next.js app and API routes
-  api/
-    chat/               # Chat streaming endpoint
-    crons/              # Cron CRUD and run
-    cron-sessions/      # Sessions created by prompt crons
-    files/              # Serve workspace/public files
-    skills/             # List and install skills
-    webhooks/           # Telegram, Slack, WhatsApp webhooks
+  api/                  # 26 route handlers — see docs/api-reference.md
+    chat/               #   Streaming chat + compare mode
+    channels/           #   Channel status and credentials
+    config/             #   Default workspace path
+    context/            #   Workspace search
+    crons/              #   Cron CRUD and run
+    cron-sessions/      #   Sessions created by prompt crons
+    files/              #   Serve workspace/public files
+    git/                #   Branch and working-tree status
+    memory/             #   Minns memories and config
+    notifications/      #   In-memory notification feed
+    providers/          #   LLM provider key status
+    sessions/           #   Per-session usage, session sharing
+    skills/             #   List, install, edit, search skills
+    terminal/           #   Streaming shell execution
+    webhooks/           #   Telegram, WhatsApp, and Chat SDK platforms
+    workflows/          #   Workflow CRUD and execution
+    workspace/          #   Directory validation and listing
+  shared/[id]/          # Public read-only view of a shared session
 components/             # React UI
-  chat/                 # ChatInterface, MessageList, InputBar
-  layout/               # Header, Sidebar, CommandPalette, CronsPanel
-  generative-ui/       # CodeBlock, FileDiff, TerminalOutput, charts
-lib/                    # Core logic
-  chat/                 # Handler, config, session store
-  crons/                # Cron store, runner, cron sessions
-  tools/                # Bash, filesystem, executeCode, cron tools
+  chat/                 # ChatInterface, MessageList, InputBar, CompareMode, VoiceInput
+  layout/               # Header, Sidebar, CommandPalette, CronsPanel, GitStatus
+  workflows/            # WorkflowsPanel, WorkflowEditor, WorkflowRunner
+  settings/             # ProviderKeysPanel, MemorySettings
+  skills/               # SkillCard, SkillEditor, SkillMarketplace
+  generative-ui/        # CodeBlock, FileDiff, TerminalOutput, charts
+  ui/                   # Shared primitives
+lib/                    # Core logic — see docs/architecture.md
+  chat/                 # Handler, config, session store, webhook verification
+  models/               # Provider registry and model resolution
+  tools/                # The 15 agent tools
   skills/               # Skill loader and manager
+  crons/                # Cron store, runner, cron sessions
+  workflows/            # Workflow types and server-side store
+  memory/               # Minns long-term memory client
+  context/              # Workspace keyword search
+  store/                # Client-side Zustand stores (sessions, workflows, theme, …)
+  usage/                # Per-session token and cost tracking
+  hooks/                # Shared React hooks
+types/                  # Shared TypeScript types
 skills/                 # Built-in skills (agent-browser, coding, bash, etc.)
-workspace/              # Default working directory
+scripts/                # Standalone tsx scripts
+workspace/              # Default working directory (gitignored)
 ```
