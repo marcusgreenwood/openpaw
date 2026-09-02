@@ -214,7 +214,9 @@ components/             # React UI
   workflows/            # WorkflowsPanel, WorkflowEditor, WorkflowRunner
   settings/             # ProviderKeysPanel, MemorySettings
   skills/               # SkillCard, SkillEditor, SkillMarketplace
+  channels/             # ChannelsPanel, ChannelCard
   generative-ui/        # CodeBlock, FileDiff, TerminalOutput, charts
+  cat/                  # CatAvatar, CatFace (mood-driven animated avatar)
   ui/                   # Shared primitives
 lib/                    # Core logic — see docs/architecture.md
   chat/                 # Handler, config, session store, webhook verification
