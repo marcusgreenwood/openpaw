@@ -1,5 +1,27 @@
 /**
- * Runs due cron jobs. Call from /api/crons/run (e.g. via Vercel Cron or system cron every minute).
+ * Cron execution engine.
+ *
+ * Exports:
+ *  - `runDueCrons(workspacePath?)` — runs every enabled job that is due.
+ *    Called from `/api/crons/run` (Vercel Cron or a system cron, every minute).
+ *  - `runCronById(id, workspacePath?)` — runs one job immediately, ignoring the
+ *    schedule. Backs the "Run now" button.
+ *
+ * Dueness is computed from `lastRunAt`, not from wall-clock alignment: the cron
+ * expression is parsed with `currentDate` seeded to the last run (or the epoch
+ * for a job that has never run, making it due immediately) and the job fires if
+ * that next occurrence is already in the past. An unparseable expression yields
+ * a failed result rather than throwing, so one bad job cannot stall the rest.
+ *
+ * Command jobs spawn `sh -c` in the workspace with the Python venv on PATH and
+ * a hard 60s timeout. Prompt jobs call `handleChatBlocking` — a real, billable
+ * model call — and persist the exchange as a new session in
+ * `.claw/cron-sessions.json`.
+ *
+ * Side effects per run: writes `lastRunAt` back to `.claw/crons.json`, and
+ * POSTs a best-effort notification to `/api/notifications` (base URL from
+ * `VERCEL_URL`, else `http://localhost:${PORT || 3000}`; a rejected fetch is
+ * swallowed).
  */
 
 import { spawn } from "node:child_process";

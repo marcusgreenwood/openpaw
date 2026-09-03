@@ -162,23 +162,64 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 ## Project Structure
 
 ```
-app/                    # Next.js app and API routes
+app/                    # Next.js App Router pages and API routes
   api/
-    chat/               # Chat streaming endpoint
+    chat/               # Chat streaming endpoint (+ compare/)
+    channels/           # Channel status and credentials
+    config/             # Default workspace lookup
+    context/            # Workspace keyword search
     crons/              # Cron CRUD and run
     cron-sessions/      # Sessions created by prompt crons
     files/              # Serve workspace/public files
-    skills/             # List and install skills
-    webhooks/           # Telegram, Slack, WhatsApp webhooks
+    git/                # Read-only git status
+    memory/             # Minns memory listing and config
+    notifications/      # In-memory notification feed
+    providers/          # AI provider key status and storage
+    sessions/           # Per-session usage, sharing
+    skills/             # List, install, edit, search skills
+    terminal/           # SSE bash output streaming
+    webhooks/           # Telegram, WhatsApp, and Chat SDK platforms
+    workflows/          # Workflow CRUD and SSE execution
+    workspace/          # Directory validation and listing
+  shared/               # Read-only shared session viewer
 components/             # React UI
-  chat/                 # ChatInterface, MessageList, InputBar
-  layout/               # Header, Sidebar, CommandPalette, CronsPanel
-  generative-ui/       # CodeBlock, FileDiff, TerminalOutput, charts
+  cat/                  # Animated cat avatar reflecting agent mood
+  chat/                 # ChatInterface, MessageList, InputBar, CompareMode
+  layout/               # Header, Sidebar, CommandPalette, CronsPanel, SettingsModal
+  generative-ui/        # CodeBlock, FileDiff, TerminalOutput, charts
+  settings/             # Settings panels
+  channels/             # Channel configuration UI
+  skills/               # Skill browser and editor
+  workflows/            # Workflow builder
+  ui/                   # Shared primitives
 lib/                    # Core logic
-  chat/                 # Handler, config, session store
+  chat/                 # Handler, config, session/API-key/channel stores, formatters
   crons/                # Cron store, runner, cron sessions
-  tools/                # Bash, filesystem, executeCode, cron tools
+  tools/                # Bash, filesystem, executeCode, cron, memory, context tools
   skills/               # Skill loader and manager
+  workflows/            # Workflow store and types
+  models/               # Provider registry and model resolution
+  memory/               # Minns memory client (optional)
+  context/              # Workspace file search
+  usage/                # Per-session token and cost accounting
+  store/                # Zustand stores (browser state)
+  hooks/                # React hooks
+  system-prompt.md      # Agent system prompt template
+docs/                   # API, architecture, and configuration reference
 skills/                 # Built-in skills (agent-browser, coding, bash, etc.)
-workspace/              # Default working directory
+types/                  # Shared TypeScript types
+workspace/              # Default working directory (git-ignored)
+.claw/                  # Server-side JSON state and secrets (git-ignored)
 ```
+
+---
+
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [docs/api.md](docs/api.md) | Complete HTTP API reference — every route, parameter, response, and error |
+| [docs/architecture.md](docs/architecture.md) | System design, request lifecycle, storage model, cron and channel flows |
+| [docs/configuration.md](docs/configuration.md) | Environment variables, `.claw/` file layout, workspace conventions |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, commands, commit conventions, and how to add a tool, route, or skill |
+| [AGENTS.md](AGENTS.md) | Notes for AI coding agents working in this repo |

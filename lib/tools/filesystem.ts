@@ -2,7 +2,12 @@
  * @file Filesystem tools — sandboxed read, write, list, and mkdir operations.
  *
  * All paths are resolved relative to the workspace root and validated against a
- * path-traversal check ({@link safeResolve}) before any I/O occurs.
+ * path-traversal check ({@link safeResolve}) before any I/O occurs. That check is
+ * the only thing preventing the model from reading or writing arbitrary files.
+ *
+ * Each export is a factory taking the workspace path and returning an AI SDK tool;
+ * see {@link readFile}, {@link writeFile}, {@link listDirectory} and
+ * {@link createDirectory}.
  */
 
 import { tool } from "ai";

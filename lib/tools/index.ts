@@ -4,6 +4,13 @@
  * Call {@link allTools} once per session to obtain the full tool set. Each tool
  * factory receives the workspace path (and optionally the session ID for memory
  * tools) so they can resolve paths and correlate memory entries correctly.
+ * Currying over the resolved workspace path is what keeps the model from
+ * redirecting a tool outside the sandbox.
+ *
+ * To add a tool: implement it under `lib/tools/`, then add it to the object
+ * returned by {@link allTools}. There is no other registration step.
+ *
+ * @see lib/chat/handler.ts — the only caller, via `buildContext`
  */
 
 import { executeBash } from "./bash";

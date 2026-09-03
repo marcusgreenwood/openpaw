@@ -5,6 +5,14 @@
  * workspace .claude/skills) and deduplicates by skill name so that built-in skills
  * always win on conflicts. Each skill's body is sanitized and length-capped before
  * being returned as a {@link Skill} object.
+ *
+ * A skill is a directory containing `SKILL.md` with YAML frontmatter; `name` and
+ * `description` are required, and a file missing either is skipped silently.
+ * Skills found outside `skills/` are tagged `source: "user"` and are the only ones
+ * the skills API will edit or delete. Unreadable directories are treated as empty
+ * rather than raising.
+ *
+ * Read-only — no caching happens here; see `manager.ts`.
  */
 
 import * as fs from "node:fs/promises";

@@ -1,6 +1,19 @@
 /**
- * Persistence for scheduled tasks (cron jobs).
- * Stores in .claw/crons.json
+ * Persistence for scheduled tasks (cron jobs), stored in `.claw/crons.json`.
+ *
+ * Exports the `CronJob` type plus `loadCrons`, `saveCrons`, `createCron`,
+ * `updateCron`, `deleteCron`, and `getCron`.
+ *
+ * Every mutation is read-modify-write over the whole file: there is no locking,
+ * so concurrent writers can clobber each other. This assumes a single
+ * long-lived instance.
+ *
+ * `loadCrons` returns `[]` when the file is missing or malformed rather than
+ * throwing, and migrates legacy jobs that predate the `type` field to
+ * `"command"` on read. `saveCrons` creates `.claw/` if needed.
+ *
+ * Note that `lastRunAt` is what the scheduler uses to decide dueness — see
+ * `runner.ts`.
  */
 
 import * as fs from "node:fs/promises";
