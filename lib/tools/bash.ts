@@ -4,6 +4,17 @@
  * Includes a blocklist of dangerous command patterns, automatic virtual-environment
  * activation for Python commands, and output-path rewriting for certain CLI tools
  * (e.g. agent-browser screenshot/pdf) so that relative paths resolve correctly.
+ *
+ * {@link BLOCKED_PATTERNS} is also imported by `/api/terminal`, so the interactive
+ * terminal and the agent's tool share a single guard.
+ *
+ * Side effects: spawns `bash -c`, creates the workspace Python venv on first use
+ * (`ensureVenv`), and writes whatever files the command writes. Commands run as
+ * `cd '<workspace>' && <command>` with the venv on `PATH` and `TERM=dumb`. On
+ * timeout the whole process group is killed with SIGKILL and exit code 124 is
+ * returned. Output is truncated (50k stdout / 10k stderr) to protect the context
+ * window, and failures resolve to a result object rather than throwing, so a bad
+ * command does not abort the agent's tool loop.
  */
 
 import { tool } from "ai";

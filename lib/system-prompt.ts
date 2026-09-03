@@ -1,3 +1,21 @@
+/**
+ * System prompt assembly.
+ *
+ * `buildSystemPrompt(skills, workspacePath?)` reads the `lib/system-prompt.md`
+ * template (cached 10s) and substitutes three placeholders:
+ *
+ *  - `{{CURRENT_DATETIME}}`  — locale-formatted current time with timezone
+ *  - `{{WORKSPACE_SECTION}}` — workspace path and the `public/` output
+ *    convention; omitted entirely when no workspace is supplied
+ *  - `{{SKILL_BLOCKS}}`      — each skill's name, description, and body
+ *
+ * The agent's base instructions live in the markdown file, not here. Edit
+ * `lib/system-prompt.md` to change behavior; this module only fills in the
+ * dynamic parts.
+ *
+ * Side effect: reads from disk on a cache miss and throws if the template is
+ * missing — a missing prompt template is not recoverable.
+ */
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Skill } from "@/types";

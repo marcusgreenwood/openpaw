@@ -1,9 +1,14 @@
 /**
  * @file Skills manager — caching layer and install helper on top of the skill loader.
  *
- * Provides {@link getSkills} (with a short-lived TTL cache), {@link invalidateSkillsCache},
- * and {@link installSkill} which shells out to `npx skills add` and copies the result
- * into the user-skills directory.
+ * Provides {@link getSkills} (a 10-second TTL cache keyed by workspace, called by the
+ * chat handler on every turn), {@link invalidateSkillsCache} (call after any mutation
+ * to a skill file), and {@link installSkill} which shells out to `npx skills add` and
+ * copies the result into the user-skills directory.
+ *
+ * {@link installSkill} is bounded by `SKILL_INSTALL_TIMEOUT_MS` and resolves with
+ * `{ success, output }` rather than throwing, so a failed install surfaces as
+ * `success: false` with the combined stdout/stderr.
  */
 
 import { loadSkills, USER_SKILLS_DIR } from "./loader";
