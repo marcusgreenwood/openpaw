@@ -90,6 +90,34 @@ export function bypassReason(message, { env = process.env } = {}) {
 }
 
 /**
+ * commitlint's `subject-case` rule rejects a subject whose *first character* is
+ * uppercase, and looks no further. Verified against this repo's own config:
+ * `fix: API timeout`, `feat: OAuth login`, `chore: WIP` and
+ * `refactor: SessionStore to use Zustand` all fail, while `fix: aPI timeout`,
+ * `fix: iOS crash on launch` and `refactor: sessionStore to use Zustand` pass.
+ */
+export function startsUppercase(subject) {
+  return /^[A-Z]/.test(subject);
+}
+
+/**
+ * Lowercase just enough of the leading word to satisfy `subject-case`.
+ *
+ * The leading run of capitals is what gets folded. A run of one is an ordinary
+ * capitalized word, so only that character changes and internal camelCase
+ * survives: `Add a thing` -> `add a thing`, `SessionStore refactor` ->
+ * `sessionStore refactor`. A run of two or more is an acronym, so the whole run
+ * goes down: `API timeout` -> `api timeout`, `OAuth login` -> `oauth login`.
+ * Folding only the first character there would yield the technically-valid but
+ * unreadable `aPI timeout`.
+ */
+export function lowercaseSubjectStart(subject) {
+  const run = /^[A-Z]+/.exec(subject);
+  if (!run) return subject;
+  return run[0].toLowerCase() + subject.slice(run[0].length);
+}
+
+/**
  * Does this message already satisfy the rules the normalizer knows how to fix?
  *
  * Deliberately narrower than commitlint: it only covers the rules the
@@ -108,7 +136,7 @@ export function conforms(message) {
   if (!TYPES.includes(type)) return false;
   if (scope !== undefined && (scope.trim() === '' || scope !== scope.toLowerCase())) return false;
   if (subject.trim() === '') return false;
-  if (/^[A-Z][a-z]/.test(subject)) return false;
+  if (startsUppercase(subject)) return false;
   if (/\.$/.test(subject.trim()) && !/\.\.\.$/.test(subject.trim())) return false;
   if (lines.length > 1 && lines[1].trim() !== '') return false;
 

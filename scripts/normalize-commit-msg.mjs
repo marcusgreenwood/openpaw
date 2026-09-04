@@ -15,8 +15,17 @@
  *
  * Usage: node scripts/normalize-commit-msg.mjs <path-to-commit-msg-file>
  */
-import { readFileSync, writeFileSync } from 'node:fs';
-import { TYPES, HEADER_PATTERN, stripComments, bypassReason, conforms } from './commit-rules.mjs';
+import { readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import {
+  TYPES,
+  HEADER_PATTERN,
+  stripComments,
+  bypassReason,
+  conforms,
+  startsUppercase,
+  lowercaseSubjectStart,
+} from './commit-rules.mjs';
 
 const SCISSORS = /^#\s*-+\s*>8\s*-+/;
 
@@ -31,13 +40,19 @@ const TYPE_HINTS = [
   [/^revert\b/i, 'revert'],
   [/\b(ci|pipeline|github actions?|workflow file|codeowners)\b/i, 'ci'],
   [/\b(tests?|testing|spec|specs|coverage|fixtures?)\b/i, 'test'],
-  [/\b(bump|upgrade|downgrade|dependenc(?:y|ies)|deps|lockfile|package-lock|npm audit)\b/i, 'chore'],
+  [
+    /\b(bump(?:s|ed|ing)?|upgrad(?:e|es|ed|ing)|downgrad(?:e|es|ed|ing)|dependenc(?:y|ies)|deps|lockfile|package-lock|npm audit)\b/i,
+    'chore',
+  ],
   [/\b(build|bundler|webpack|rollup|vite|tsconfig|next\.config|compile)\b/i, 'build'],
   [/\b(fix(?:es|ed|ing)?|resolve[ds]?|repair|correct|patch|bug|regression|broken|crash)\b/i, 'fix'],
-  [/\b(perf|performance|optimi[sz]e[sd]?|speed up|faster|memoi[sz]e)\b/i, 'perf'],
+  [
+    /\b(perf|performance|optimi[sz](?:e|es|ed|ing)|speed(?:s|ed|ing)? up|faster|memoi[sz](?:e|es|ed|ing))\b/i,
+    'perf',
+  ],
   [/\b(format|formatting|lint(?:ing)?|prettier|whitespace|typo|indent)\b/i, 'style'],
   [
-    /\b(refactor|rename[ds]?|move[ds]?|extract|simplif(?:y|ies|ied)|reorgani[sz]e|restructure|overhaul|rework|revamp|improve[ds]?|clean ?up|tidy|consolidate)\b/i,
+    /\b(refactor(?:s|ed|ing)?|renam(?:e|es|ed|ing)|mov(?:e|es|ed|ing)|extract(?:s|ed|ing)?|simplif(?:y|ies|ied|ying)|reorgani[sz](?:e|es|ed|ing)|restructur(?:e|es|ed|ing)|overhaul(?:s|ed|ing)?|rework(?:s|ed|ing)?|revamp(?:s|ed|ing)?|improv(?:e|es|ed|ing)|clean(?:s|ed|ing)? ?up|tid(?:y|ies|ied|ying)|consolidat(?:e|es|ed|ing))\b/i,
     'refactor',
   ],
   [/\b(add(?:s|ed|ing)?|introduce[ds]?|implement(?:s|ed)?|create[ds]?|support|enable[ds]?|new)\b/i, 'feat'],
@@ -96,9 +111,9 @@ export function normalizeHeader(header) {
     notes.push(`inferred the type "${type}" from the subject`);
   }
 
-  if (/^[A-Z][a-z]/.test(subject)) {
-    subject = subject.charAt(0).toLowerCase() + subject.slice(1);
-    notes.push('lowercased the first word of the subject');
+  if (startsUppercase(subject)) {
+    subject = lowercaseSubjectStart(subject);
+    notes.push('lowercased the start of the subject');
   }
   const withoutStop = subject.replace(/\s*\.$/, '');
   if (withoutStop !== subject && !subject.trimEnd().endsWith('...')) {
@@ -113,9 +128,13 @@ export function normalizeHeader(header) {
  * Rewrite the message region of a raw commit-message file, preserving git's
  * comments and any `--verbose` scissors block.
  *
- * Only the message itself is touched: no `#` banner is added, because by the
- * time `commit-msg` runs git has already applied `--cleanup`, so any comment
- * written here would survive into the commit verbatim.
+ * The file still holds git's comment template at this point — git applies
+ * `--cleanup` *after* `commit-msg` returns, not before — which is why the header
+ * scan below skips `#` lines and why `stripComments` exists at all.
+ *
+ * Only the message itself is touched: no `#` banner is added. `git commit -m`
+ * cleans with `--cleanup=whitespace`, which keeps `#` lines, so a banner written
+ * here would be committed verbatim on that path.
  * Returns `{ changed, output, notes }`.
  */
 export function normalizeMessage(raw) {
@@ -172,6 +191,26 @@ function main(argv) {
   return 0;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+/**
+ * Is this file the entry point, rather than an import from the tests?
+ *
+ * Compares resolved filesystem paths, not URLs. `import.meta.url` is
+ * percent-encoded and already symlink-resolved, so the obvious
+ * `import.meta.url === `file://${process.argv[1]}`` silently fails for any clone
+ * under a path with a space (`~/My Projects`, iCloud) or behind a symlink -- the
+ * hook would exit 0 having normalized nothing, and commitlint would then reject
+ * the untouched message.
+ */
+function isMainModule() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (isMainModule()) {
   process.exit(main(process.argv.slice(2)));
 }

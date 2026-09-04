@@ -8,8 +8,20 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { stripComments, bypassReason, conforms, TYPES, MAX_SUBJECT_LENGTH } from './commit-rules.mjs';
+import {
+  stripComments,
+  bypassReason,
+  conforms,
+  lowercaseSubjectStart,
+  TYPES,
+  MAX_SUBJECT_LENGTH,
+} from './commit-rules.mjs';
 import { inferType, normalizeHeader, normalizeMessage } from './normalize-commit-msg.mjs';
 
 test('rules are read from commitlint.config.js', () => {
@@ -48,6 +60,12 @@ test('conforms() rejects what the normalizer should fix', () => {
     'feat(): add a thing',
     'feat(Crons): add a thing',
     'feat: Add a thing',
+    // commitlint's subject-case looks at the first character and nothing else,
+    // so a leading acronym is just as invalid as a capitalized word.
+    'fix: API timeout',
+    'feat: OAuth login',
+    'chore: WIP',
+    'refactor: SessionStore to use Zustand',
     'feat: add a thing.',
     'feat: add a thing\nbody with no blank line',
   ];
@@ -172,12 +190,30 @@ test('normalizeMessage rewrites the message region in place', () => {
 // Regression (the reason normalization moved into `commit-msg`): git runs
 // `prepare-commit-msg` before opening the editor, so it only ever saw the empty
 // template and the typed subject went unnormalized. `commit-msg` runs after the
-// editor closes and after git's `--cleanup` pass, so it sees this instead.
-test('normalizes the editor flow, where the message arrives already cleaned', () => {
-  const raw = 'Add a shiny thing.\n\nSome body text explaining why.\n';
+// editor closes -- but *before* git applies `--cleanup`, so the file still
+// carries git's comment template. That is the shape reproduced here.
+test('normalizes the editor flow, template comments and all', () => {
+  const raw = [
+    'Add a shiny thing.',
+    'Some body text explaining why.',
+    '',
+    '# Please enter the commit message for your changes. Lines starting',
+    "# with '#' will be ignored, and an empty message aborts the commit.",
+    '#',
+    '# On branch chore/commit-message-normalizer',
+    '# Changes to be committed:',
+    '#\tmodified:   scripts/normalize-commit-msg.mjs',
+    '#',
+    '',
+  ].join('\n');
   const { changed, output } = normalizeMessage(raw);
   assert.equal(changed, true);
-  assert.equal(output, 'feat: add a shiny thing\n\nSome body text explaining why.\n');
+  assert.equal(
+    stripComments(output),
+    'feat: add a shiny thing\n\nSome body text explaining why.',
+  );
+  // git's own template survives untouched for git to strip.
+  assert.ok(output.includes('# On branch chore/commit-message-normalizer'));
   assert.equal(conforms(stripComments(output)), true);
 });
 
@@ -231,4 +267,85 @@ test('an over-length subject is left for commitlint to reject', () => {
   assert.ok(header.startsWith('feat: '));
   // Length is not something the normalizer can guess at.
   assert.ok(header.length > MAX_SUBJECT_LENGTH);
+});
+
+test('lowercaseSubjectStart folds the leading run of capitals', () => {
+  const cases = [
+    // One leading capital: an ordinary word, so internal camelCase survives.
+    ['Add a thing', 'add a thing'],
+    ['SessionStore to use Zustand', 'sessionStore to use Zustand'],
+    ['I broke it', 'i broke it'],
+    // Two or more: an acronym, so the whole run goes down rather than
+    // producing the valid-but-unreadable `aPI timeout`.
+    ['API timeout', 'api timeout'],
+    ['OAuth login', 'oauth login'],
+    ['UI glitch in sidebar', 'ui glitch in sidebar'],
+    ['WIP', 'wip'],
+    ['SDK upgrade', 'sdk upgrade'],
+    ['HTTP handling', 'http handling'],
+    // Already acceptable to commitlint: left alone.
+    ['iOS crash on launch', 'iOS crash on launch'],
+    ['add a thing', 'add a thing'],
+  ];
+  for (const [input, expected] of cases) {
+    assert.equal(lowercaseSubjectStart(input), expected, input);
+  }
+});
+
+// Regression: `git commit -m "API rate limit handling"` used to be rewritten to
+// `chore: API rate limit handling` and then rejected by commitlint -- the
+// message was modified and the commit still failed.
+test('normalizeHeader repairs subjects that start with an acronym', () => {
+  const cases = [
+    ['API rate limit handling', 'chore: api rate limit handling'],
+    ['fix: API timeout', 'fix: api timeout'],
+    ['feat: OAuth login', 'feat: oauth login'],
+    ['fix: UI glitch in sidebar', 'fix: ui glitch in sidebar'],
+    ['refactor: SessionStore to use Zustand', 'refactor: sessionStore to use Zustand'],
+  ];
+  for (const [input, expected] of cases) {
+    assert.equal(normalizeHeader(input).header, expected, input);
+    assert.equal(conforms(normalizeHeader(input).header), true, expected);
+  }
+});
+
+// Regression: the hint patterns listed base verbs only, so `Reworked the parser`
+// fell through to `chore`, mis-typing the commit for changelog/semver consumers.
+test('inferType recognizes inflected verbs', () => {
+  const cases = [
+    ['Reworked the parser', 'refactor'],
+    ['Revamped the skills manager', 'refactor'],
+    ['Overhauled the system prompt', 'refactor'],
+    ['Tidied the cron store', 'refactor'],
+    ['Consolidated the tool registry', 'refactor'],
+    ['Extracted a shared helper', 'refactor'],
+    ['Cleaned up the sidebar', 'refactor'],
+    ['Simplifying the loader', 'refactor'],
+    ['Bumped next to 16.1.6', 'chore'],
+    ['Upgraded the lockfile', 'chore'],
+    ['Optimized the message list render', 'perf'],
+  ];
+  for (const [subject, expected] of cases) {
+    assert.equal(inferType(subject), expected, subject);
+  }
+});
+
+// Regression: the main-module guard compared `import.meta.url` (percent-encoded)
+// against a raw path, so in a clone under `~/My Projects` the script exited 0
+// and normalized nothing while the hook still reported success.
+test('the script runs as a hook from a path containing a space', () => {
+  const scriptDir = fileURLToPath(new URL('.', import.meta.url));
+  const root = mkdtempSync(join(tmpdir(), 'commit norm-'));
+  const dest = join(root, 'scripts');
+  cpSync(scriptDir, dest, { recursive: true });
+  // The rules module reads commitlint.config.js from its parent directory.
+  cpSync(join(scriptDir, '..', 'commitlint.config.js'), join(root, 'commitlint.config.js'));
+
+  const msgFile = join(root, 'COMMIT_EDITMSG');
+  writeFileSync(msgFile, 'API rate limit handling.\n');
+  execFileSync(process.execPath, [join(dest, 'normalize-commit-msg.mjs'), msgFile], {
+    stdio: 'ignore',
+  });
+
+  assert.equal(readFileSync(msgFile, 'utf8'), 'chore: api rate limit handling\n');
 });

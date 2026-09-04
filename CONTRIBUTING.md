@@ -73,7 +73,8 @@ The `commit-msg` hook fixes what it safely can, then hands the result to commitl
 |---------|-----|
 | No type (`Add dark mode`) | Infers one from keywords → `feat: add dark mode` |
 | Uppercase type or scope (`Feat(API): ...`) | Lowercases → `feat(api): ...` |
-| Capitalized subject (`feat: Add dark mode`) | Lowercases the first word |
+| Capitalized subject (`feat: Add dark mode`) | Lowercases the leading word → `feat: add dark mode` |
+| Leading acronym (`fix: API timeout`) | Lowercases the whole run of capitals → `fix: api timeout` |
 | Trailing period (`feat: add dark mode.`) | Strips it |
 | Empty scope (`feat(): ...`) | Drops the parentheses |
 | Missing space (`feat:add`) | Inserts it |
@@ -86,7 +87,7 @@ Normalization works the same whether you pass `-m` or type the message in an edi
 Two consequences worth knowing:
 
 - Amending (`git commit --amend`) normalizes the message too, instead of rejecting a non-conforming one.
-- The normalizer never writes `#` comment lines. By the time `commit-msg` runs git has already applied `--cleanup`, so a comment added here would be committed verbatim.
+- The normalizer never writes `#` comment lines. `git commit -m` cleans with `--cleanup=whitespace`, which keeps `#` lines, so a comment added here would be committed verbatim. (git applies `--cleanup` *after* `commit-msg` returns, so the hook still sees git's own comment template and skips it.)
 
 The normalizer is `scripts/normalize-commit-msg.mjs`. It is zero-dependency Node and reads its type list and length limit straight from `commitlint.config.js`, so the two can never disagree. Its tests run with `npm run test:commit-msg`.
 

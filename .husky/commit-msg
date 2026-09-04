@@ -4,9 +4,10 @@
 # Both steps live here rather than in prepare-commit-msg because git runs
 # prepare-commit-msg *before* opening the editor: at that point the file holds
 # only the empty template, so there is no subject to normalize. commit-msg runs
-# after the editor closes and after git's --cleanup pass, making it the first
-# hook that sees the message the author actually wrote. Rewriting the message
-# file here is explicitly supported by githooks(5).
+# after the editor closes, making it the first hook that sees the message the
+# author actually wrote. The file still carries git's comment template here --
+# --cleanup runs after this hook, not before -- so the normalizer skips comment
+# lines. Rewriting the message file here is explicitly supported by githooks(5).
 #
 # Bypass both steps with SKIP_COMMIT_LINT=1 or `git commit --no-verify`.
 
