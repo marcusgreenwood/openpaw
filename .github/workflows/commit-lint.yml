@@ -1,0 +1,32 @@
+name: Commit messages
+
+on:
+  pull_request:
+
+jobs:
+  commit-lint:
+    name: Conventional Commits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # --ignore-scripts skips the postinstall `agent-browser install`, which
+      # downloads ~280 MB of Chromium this job has no use for.
+      # --legacy-peer-deps matches the documented install for this repo.
+      - name: Install commitlint
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+      - name: Validate commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: npx commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+
+      - name: Run normalizer tests
+        run: npm run test:commit-msg

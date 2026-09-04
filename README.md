@@ -156,6 +156,23 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 | `npm run build` | Build for production |
 | `npm run start` | Run production server |
 | `npm run test:usage` | Run usage tracking tests |
+| `npm run test:commit-msg` | Run commit-message normalizer tests |
+
+---
+
+## Contributing
+
+Commits follow [Conventional Commits](CONTRIBUTING.md), enforced by commitlint in a git hook and re-checked in CI:
+
+```
+feat(crons): add run-now action to the crons panel
+fix: resolve lint warnings in workflow files
+docs: add commit convention
+```
+
+A `prepare-commit-msg` hook normalizes what it can first (infers a missing type, fixes capitalization, strips a trailing period). Hooks install with `npm install`.
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full rules.
 
 ---
 
@@ -180,5 +197,6 @@ lib/                    # Core logic
   tools/                # Bash, filesystem, executeCode, cron tools
   skills/               # Skill loader and manager
 skills/                 # Built-in skills (agent-browser, coding, bash, etc.)
+scripts/                # Dev scripts (usage tests, commit-message normalizer)
 workspace/              # Default working directory
 ```

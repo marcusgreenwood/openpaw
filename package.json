@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test:usage": "tsx scripts/test-usage.ts",
+    "test:commit-msg": "node --test scripts/test-commit-msg.mjs",
     "postinstall": "npx agent-browser install",
     "prepare": "husky",
     "commitlint": "commitlint --from HEAD~1 --to HEAD"
@@ -53,6 +54,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
+    "husky": "^9.1.7",
     "tsx": "^4.21.0",
     "typescript": "^5"
   }

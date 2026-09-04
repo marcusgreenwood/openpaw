@@ -14,6 +14,25 @@ See `package.json` scripts and `README.md` for full details:
 - **Build:** `npm run build`
 - **Lint:** `npm run lint` (ESLint; has pre-existing warnings/errors in the repo)
 - **Test:** `npm run test:usage` (usage tracking tests; requires `GOOGLE_GENERATIVE_AI_API_KEY`)
+- **Commit message tests:** `npm run test:commit-msg` (no API key needed)
+
+### Commit messages
+
+**This repo enforces [Conventional Commits](CONTRIBUTING.md) via commitlint. Agents commit here often and produced the inconsistent history this convention fixes — follow it.**
+
+Format: `<type>(<optional scope>)!: <subject>`, lowercase imperative subject, no trailing period, subject ≤ 100 chars. Types: `feat`, `fix`, `chore`, `docs`, `style`, `refactor`, `perf`, `test`, `ci`, `build`, `revert`.
+
+```
+feat(crons): add run-now action to the crons panel
+```
+
+- Full rules, examples and trailer conventions: `CONTRIBUTING.md`
+- Hooks install via `npm install` (the `prepare` script runs husky), or explicitly with `npx husky`
+- `prepare-commit-msg` auto-fixes what it can (missing type, capitalization, trailing period, missing blank line); `commit-msg` runs commitlint and rejects the rest
+- Merge, revert and `fixup!`/`squash!` commits are exempt automatically
+- Escape hatches: `SKIP_COMMIT_LINT=1` skips the normalizer (commitlint still runs); `git commit --no-verify` skips commitlint (the normalizer still runs, since git does not treat `prepare-commit-msg` as a verification hook). Combine both to skip everything
+- CI re-checks every commit on a pull request, so skipping the hook locally does not skip enforcement
+- Existing history is **not** rewritten
 
 ### Key caveats
 
@@ -22,6 +41,7 @@ See `package.json` scripts and `README.md` for full details:
 - At least one LLM API key must be configured for chat to work. Keys can be set via environment variables (`GOOGLE_GENERATIVE_AI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `MOONSHOT_API_KEY`) or through the in-app Settings UI. The default model may not match your configured key — use the model selector (top-right) to switch to a provider you have configured.
 - Chat state is stored in browser `localStorage` (Zustand/persist). Server-side config (API keys, crons, Minns memory) is stored as JSON files in `.claw/` directory.
 - The lint command (`npm run lint`) exits with code 1 due to pre-existing `react-hooks/set-state-in-effect` errors — this is a known issue in the repo, not an environment problem.
+- The commit-message normalizer (`scripts/normalize-commit-msg.mjs`, `scripts/commit-rules.mjs`) is zero-dependency Node ESM and reads its rules from `commitlint.config.js`, so the two cannot drift apart.
 
 ### LiveTerminal (streaming bash output)
 
