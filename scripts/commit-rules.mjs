@@ -68,6 +68,12 @@ export function stripComments(raw) {
 /**
  * Messages git generates itself, or that git will re-consume, must survive
  * untouched. Returns a reason string when the message is exempt, else null.
+ *
+ * These are matched on the subject rather than on `prepare-commit-msg`'s
+ * `source` argument, because the hooks run from `commit-msg`, which git does
+ * not pass a source. The subject is the more reliable signal anyway: it is what
+ * git actually writes, and it still identifies a merge that arrived through
+ * `git pull` or a conflict resolution commit.
  */
 export function bypassReason(message, { env = process.env } = {}) {
   if (env.SKIP_COMMIT_LINT === '1' || env.SKIP_COMMIT_LINT === 'true') {
@@ -77,6 +83,7 @@ export function bypassReason(message, { env = process.env } = {}) {
   if (/^Merge (branch|branches|pull request|remote-tracking|tag|commit)\b/.test(subject)) {
     return 'merge commit';
   }
+  if (/^Squashed commit of the following:/.test(subject)) return 'squashed merge commit';
   if (/^Revert "/.test(subject)) return 'revert commit';
   if (/^(fixup|squash|amend)!/.test(subject)) return 'fixup/squash commit';
   return null;

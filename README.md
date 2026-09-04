@@ -170,7 +170,7 @@ fix: resolve lint warnings in workflow files
 docs: add commit convention
 ```
 
-A `prepare-commit-msg` hook normalizes what it can first (infers a missing type, fixes capitalization, strips a trailing period). Hooks install with `npm install`.
+The `commit-msg` hook normalizes what it can first (infers a missing type, fixes capitalization, strips a trailing period), then commitlint rejects the rest. This works whether you pass `-m` or write the message in an editor. Hooks install with `npm install`.
 
 See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full rules.
 

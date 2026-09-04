@@ -86,6 +86,9 @@ test('bypasses git-generated and opted-out messages', () => {
     'fixup! feat: add a thing',
     'squash! feat: add a thing',
     'amend! feat: add a thing',
+    // `git merge --squash` writes this; commit-msg gets no source argument to
+    // tell it apart, so the subject has to be recognised directly.
+    'Squashed commit of the following:',
   ];
   for (const message of bypassed) {
     assert.ok(bypassReason(message, { env: {} }), `expected bypass: ${message}`);
@@ -156,23 +159,38 @@ test('normalizeMessage rewrites the message region in place', () => {
     '',
     '# Please enter the commit message for your changes.',
   ].join('\n');
-  const { changed, output } = normalizeMessage(raw, { withBanner: true });
+  const { changed, output } = normalizeMessage(raw);
   assert.equal(changed, true);
   assert.equal(
     stripComments(output),
     'feat: add configurable max tool steps and Continue banner\n\nBody starts with no blank line.',
   );
-  assert.ok(output.startsWith('# commit-message-normalizer:'));
+  // Comments git put there are preserved; the normalizer adds none of its own.
   assert.ok(output.includes('# Please enter the commit message'));
 });
 
-// Regression: `git commit -m` cleans with `--cleanup=whitespace`, not `strip`,
-// so a `#` banner would be committed verbatim and become the subject line.
-test('normalizeMessage omits the comment banner by default', () => {
+// Regression (the reason normalization moved into `commit-msg`): git runs
+// `prepare-commit-msg` before opening the editor, so it only ever saw the empty
+// template and the typed subject went unnormalized. `commit-msg` runs after the
+// editor closes and after git's `--cleanup` pass, so it sees this instead.
+test('normalizes the editor flow, where the message arrives already cleaned', () => {
+  const raw = 'Add a shiny thing.\n\nSome body text explaining why.\n';
+  const { changed, output } = normalizeMessage(raw);
+  assert.equal(changed, true);
+  assert.equal(output, 'feat: add a shiny thing\n\nSome body text explaining why.\n');
+  assert.equal(conforms(stripComments(output)), true);
+});
+
+// `git commit -m` cleans with `--cleanup=whitespace`, not `strip`, so anything
+// the normalizer writes is committed verbatim: it must never emit a comment.
+test('normalizeMessage never introduces comment lines', () => {
+  for (const raw of ['Add a scratch file.', 'Fixed the thing.\nbody', 'Feat(API): Do it.']) {
+    const { output } = normalizeMessage(raw);
+    assert.ok(!output.split('\n').some((l) => l.startsWith('#')), raw);
+  }
   const { changed, output } = normalizeMessage('Add a scratch file.');
   assert.equal(changed, true);
   assert.equal(output, 'feat: add a scratch file');
-  assert.ok(!output.includes('#'));
   assert.equal(conforms(output), true);
 });
 
@@ -182,6 +200,7 @@ test('normalizeMessage is a no-op for conforming, bypassed and empty messages', 
     "Merge branch 'main' into feature\n",
     'Revert "feat: add a thing"\n\nThis reverts commit deadbeef.\n',
     'fixup! feat: add a thing\n',
+    'Squashed commit of the following:\n\ncommit deadbeef\n',
     '',
     '# only comments\n',
   ]) {
@@ -199,7 +218,7 @@ test('normalizeMessage leaves the scissors block untouched', () => {
     'diff --git a/x b/x',
     '+Uppercase Line.',
   ].join('\n');
-  const { changed, output } = normalizeMessage(raw, { withBanner: true });
+  const { changed, output } = normalizeMessage(raw);
   assert.equal(changed, true);
   assert.ok(output.includes('diff --git a/x b/x'));
   assert.ok(output.includes('+Uppercase Line.'));

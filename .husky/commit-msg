@@ -1,2 +1,23 @@
 #!/usr/bin/env sh
-npx --no -- commitlint --edit $1
+# Normalize the commit subject, then let commitlint gate whatever is left.
+#
+# Both steps live here rather than in prepare-commit-msg because git runs
+# prepare-commit-msg *before* opening the editor: at that point the file holds
+# only the empty template, so there is no subject to normalize. commit-msg runs
+# after the editor closes and after git's --cleanup pass, making it the first
+# hook that sees the message the author actually wrote. Rewriting the message
+# file here is explicitly supported by githooks(5).
+#
+# Bypass both steps with SKIP_COMMIT_LINT=1 or `git commit --no-verify`.
+
+case "$SKIP_COMMIT_LINT" in
+  1 | true) exit 0 ;;
+esac
+
+# Never hard-block a contributor whose toolchain is missing Node, and never let
+# a normalizer crash reject an otherwise valid message: commitlint is the gate.
+if command -v node >/dev/null 2>&1; then
+  node "$(dirname "$0")/../scripts/normalize-commit-msg.mjs" "$1" || true
+fi
+
+npx --no -- commitlint --edit "$1"

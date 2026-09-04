@@ -67,7 +67,7 @@ Mark a breaking change with `!` before the colon (`feat(api)!: ...`) as well as 
 
 ## Automatic Normalization
 
-Before commitlint validates your message, a `prepare-commit-msg` hook fixes what it safely can:
+The `commit-msg` hook fixes what it safely can, then hands the result to commitlint:
 
 | Problem | Fix |
 |---------|-----|
@@ -79,7 +79,14 @@ Before commitlint validates your message, a `prepare-commit-msg` hook fixes what
 | Missing space (`feat:add`) | Inserts it |
 | Body on the line right after the subject | Inserts the blank line |
 
-It explains each rewrite on stderr, and (when an editor opens) in a comment at the top of the message. Anything it cannot fix — an over-length subject, an unrecognizable subject — is left for commitlint to reject.
+It lists each rewrite on stderr as the commit completes. Anything it cannot fix — an over-length subject, an unrecognizable subject — is left for commitlint to reject.
+
+Normalization works the same whether you pass `-m` or type the message in an editor. It runs from `commit-msg` rather than `prepare-commit-msg` deliberately: git runs `prepare-commit-msg` *before* opening the editor, so a hook there only ever sees the empty comment template and could never fix a subject you had not typed yet. `commit-msg` runs after the editor closes, and githooks(5) explicitly allows it to rewrite the message file in place.
+
+Two consequences worth knowing:
+
+- Amending (`git commit --amend`) normalizes the message too, instead of rejecting a non-conforming one.
+- The normalizer never writes `#` comment lines. By the time `commit-msg` runs git has already applied `--cleanup`, so a comment added here would be committed verbatim.
 
 The normalizer is `scripts/normalize-commit-msg.mjs`. It is zero-dependency Node and reads its type list and length limit straight from `commitlint.config.js`, so the two can never disagree. Its tests run with `npm run test:commit-msg`.
 
@@ -98,22 +105,16 @@ CI re-checks every commit on a pull request (`.github/workflows/commit-lint.yml`
 
 ### Exemptions and opting out
 
-Exempt automatically, with no configuration: merge commits, revert commits, and `fixup!` / `squash!` / `amend!` commits.
+Exempt automatically, with no configuration: merge commits, squashed merges, revert commits, and `fixup!` / `squash!` / `amend!` commits. These are recognized by their subject, so a merge that arrives via `git pull` or a conflict resolution is covered too.
 
-To skip deliberately — note that the two hooks are skipped by different switches, because git does not treat `prepare-commit-msg` as a verification hook:
+Both the normalizer and commitlint live in the one hook, so a single switch skips both:
 
 ```bash
-# Skip the normalizer only; commitlint still validates.
-SKIP_COMMIT_LINT=1 git commit -m "feat: add a thing"
-
-# Skip commitlint only; the normalizer still rewrites the subject.
-git commit --no-verify -m "Add a thing."
-
-# Skip both.
-SKIP_COMMIT_LINT=1 git commit --no-verify -m "whatever you like"
+SKIP_COMMIT_LINT=1 git commit -m "whatever you like"
+git commit --no-verify -m "whatever you like"
 ```
 
-If Node is not on `PATH`, the normalizer exits without blocking the commit.
+If Node is not on `PATH`, the normalizer is skipped without blocking the commit; commitlint still runs.
 
 ### History
 

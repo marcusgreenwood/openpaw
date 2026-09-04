@@ -2,29 +2,23 @@
 /**
  * Conventional Commits normalizer. Zero dependencies, Node builtins only.
  *
- * Invoked from `.husky/prepare-commit-msg`, before commitlint sees the message.
- * Rewrites subjects that can be mechanically repaired (missing type, uppercase
- * type/scope/subject, trailing period, missing blank line) and leaves anything
- * else for commitlint to reject in the `commit-msg` hook.
+ * Invoked from `.husky/commit-msg`, immediately before commitlint validates the
+ * message. Rewrites subjects that can be mechanically repaired (missing type,
+ * uppercase type/scope/subject, trailing period, missing blank line) and leaves
+ * anything else for commitlint to reject.
  *
- * Usage: node scripts/normalize-commit-msg.mjs <path-to-commit-msg-file> [source]
+ * It runs in `commit-msg` rather than `prepare-commit-msg` because git runs
+ * `prepare-commit-msg` *before* opening the editor, where the file still holds
+ * only the empty comment template. `commit-msg` is the first hook that sees the
+ * subject the author actually typed, and githooks(5) explicitly allows it to
+ * rewrite the message file in place.
+ *
+ * Usage: node scripts/normalize-commit-msg.mjs <path-to-commit-msg-file>
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { TYPES, HEADER_PATTERN, stripComments, bypassReason, conforms } from './commit-rules.mjs';
 
 const SCISSORS = /^#\s*-+\s*>8\s*-+/;
-const NOTE_MARKER = '# commit-message-normalizer:';
-
-/** Sources whose messages git owns; rewriting them breaks the workflow. */
-const SKIPPED_SOURCES = new Set(['merge', 'squash', 'commit']);
-
-/**
- * Sources for which git opens an editor and therefore cleans the message with
- * `--cleanup=strip`. Only these may receive the explanatory `#` banner: with
- * `-m`/`-F` the default cleanup is `whitespace`, so comment lines would be
- * committed verbatim and the banner would become the subject line.
- */
-const EDITOR_SOURCES = new Set(['', 'template']);
 
 /**
  * Keyword heuristics, first match wins. Deliberately ordered: a subject that
@@ -119,11 +113,12 @@ export function normalizeHeader(header) {
  * Rewrite the message region of a raw commit-message file, preserving git's
  * comments and any `--verbose` scissors block.
  *
- * `withBanner` prepends a commented explanation of the rewrite. Only safe when
- * git will strip comments afterwards (see EDITOR_SOURCES).
+ * Only the message itself is touched: no `#` banner is added, because by the
+ * time `commit-msg` runs git has already applied `--cleanup`, so any comment
+ * written here would survive into the commit verbatim.
  * Returns `{ changed, output, notes }`.
  */
-export function normalizeMessage(raw, { withBanner = false } = {}) {
+export function normalizeMessage(raw) {
   const text = String(raw).replace(/\r\n/g, '\n');
   const unchanged = { changed: false, output: text, notes: [] };
 
@@ -151,21 +146,13 @@ export function normalizeMessage(raw, { withBanner = false } = {}) {
   }
   if (notes.length === 0) return unchanged;
 
-  const banner = withBanner
-    ? [
-        `${NOTE_MARKER} rewrote the subject to follow Conventional Commits.`,
-        ...notes.map((n) => `#   - ${n}`),
-        '#   Edit freely; see CONTRIBUTING.md. Bypass with SKIP_COMMIT_LINT=1.',
-      ]
-    : [];
-  return { changed: true, output: [...banner, ...lines].join('\n'), notes };
+  return { changed: true, output: lines.join('\n'), notes };
 }
 
 function main(argv) {
-  const [file, source] = argv;
+  const [file] = argv;
   if (!file) return 0;
   if (process.env.SKIP_COMMIT_LINT === '1' || process.env.SKIP_COMMIT_LINT === 'true') return 0;
-  if (source && SKIPPED_SOURCES.has(source)) return 0;
 
   let raw;
   try {
@@ -174,9 +161,7 @@ function main(argv) {
     return 0;
   }
 
-  const { changed, output, notes } = normalizeMessage(raw, {
-    withBanner: EDITOR_SOURCES.has(source ?? ''),
-  });
+  const { changed, output, notes } = normalizeMessage(raw);
   if (!changed) return 0;
 
   writeFileSync(file, output);

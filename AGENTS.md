@@ -28,9 +28,9 @@ feat(crons): add run-now action to the crons panel
 
 - Full rules, examples and trailer conventions: `CONTRIBUTING.md`
 - Hooks install via `npm install` (the `prepare` script runs husky), or explicitly with `npx husky`
-- `prepare-commit-msg` auto-fixes what it can (missing type, capitalization, trailing period, missing blank line); `commit-msg` runs commitlint and rejects the rest
-- Merge, revert and `fixup!`/`squash!` commits are exempt automatically
-- Escape hatches: `SKIP_COMMIT_LINT=1` skips the normalizer (commitlint still runs); `git commit --no-verify` skips commitlint (the normalizer still runs, since git does not treat `prepare-commit-msg` as a verification hook). Combine both to skip everything
+- The `commit-msg` hook auto-fixes what it can (missing type, capitalization, trailing period, missing blank line), then runs commitlint to reject the rest. It normalizes `-m` and editor-written messages alike — normalization deliberately does *not* live in `prepare-commit-msg`, which git runs before the editor opens and which therefore only ever sees the empty template
+- Merge, squashed-merge, revert and `fixup!`/`squash!` commits are exempt automatically
+- Escape hatch: `SKIP_COMMIT_LINT=1` or `git commit --no-verify` — either one skips both the normalizer and commitlint
 - CI re-checks every commit on a pull request, so skipping the hook locally does not skip enforcement
 - Existing history is **not** rewritten
 
