@@ -194,9 +194,8 @@ async function testRecordUsageIntegration() {
   });
 
   // Consume the stream so onFinish fires
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  for await (const _chunk of result.textStream) {
-    // consume
+  for await (const chunk of result.textStream) {
+    void chunk; // drain the stream so onFinish fires
   }
 
   const summary = getSessionUsageSummary(sessionId);
@@ -246,9 +245,8 @@ async function testHandleChatStreamingUsage() {
   );
 
   // Consume the stream so onFinish fires (same as client consuming the response)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  for await (const _chunk of result.textStream) {
-    // consume
+  for await (const chunk of result.textStream) {
+    void chunk; // drain the stream so onFinish fires
   }
 
   const summary = getSessionUsageSummary(sessionId);

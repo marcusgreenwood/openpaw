@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useSessionsStore } from "@/lib/store/sessions";
 
@@ -18,24 +18,32 @@ export function GitStatus() {
   const [data, setData] = useState<GitData | null>(null);
   const [showDetails, setShowDetails] = useState(false);
 
-  const fetchStatus = useCallback(() => {
-    if (!workspacePath) {
-      setData(null);
-      return;
-    }
-    fetch(`/api/git?workspace=${encodeURIComponent(workspacePath)}`)
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .catch(() => setData(null));
+  useEffect(() => {
+    if (!workspacePath) return;
+    // `cancelled` keeps a late response from a previous workspace from
+    // overwriting the state of the current one.
+    let cancelled = false;
+    const fetchStatus = () => {
+      fetch(`/api/git?workspace=${encodeURIComponent(workspacePath)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (!cancelled) setData(d);
+        })
+        .catch(() => {
+          if (!cancelled) setData(null);
+        });
+    };
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [workspacePath]);
 
-  useEffect(() => {
-    setTimeout(fetchStatus, 0);
-    const interval = setInterval(fetchStatus, 10000);
-    return () => clearInterval(interval);
-  }, [fetchStatus]);
-
-  if (!data?.isRepo) return null;
+  // Without a workspace there is nothing to report, and `data` may still hold
+  // the previous workspace's status until the next fetch resolves.
+  if (!workspacePath || !data?.isRepo) return null;
 
   const dirtyCount =
     (data.modified?.length ?? 0) +

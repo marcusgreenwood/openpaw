@@ -29,6 +29,8 @@ export function FileChips({ files, onRemove }: FileChipsProps) {
           )}
         >
           {file.type === "image" ? (
+            // Local attachment preview: `file.content` is an in-memory base64 data
+            // URL, which next/image cannot optimize or serve through a loader.
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={file.content}
