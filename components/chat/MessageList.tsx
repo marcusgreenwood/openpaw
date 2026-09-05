@@ -60,6 +60,16 @@ export function MessageList({ messages, status, error, onChoiceSelect, onContinu
   }, [messages, status, isAtBottom, scrollToBottom]);
 
   /* ── Always snap to bottom on first load or new conversation ─ */
+  // Growing the message list re-pins the view to the bottom. This is a derived
+  // state adjustment, so it runs during render rather than in an effect.
+  const [prevMessageCount, setPrevMessageCount] = useState(messages.length);
+  if (prevMessageCount !== messages.length) {
+    setPrevMessageCount(messages.length);
+    if (messages.length > prevMessageCount) {
+      setIsAtBottom(true);
+    }
+  }
+
   const prevMessageCountRef = useRef(0);
   useEffect(() => {
     // If messages went from 0 → N, or user just sent a message (count increased by 1+),
@@ -70,10 +80,8 @@ export function MessageList({ messages, status, error, onChoiceSelect, onContinu
     if (prev === 0 && messages.length > 0) {
       // New conversation loaded — snap immediately
       requestAnimationFrame(() => scrollToBottom("instant"));
-      setTimeout(() => setIsAtBottom(true), 0);
     } else if (messages.length > prev) {
       // New message added (user or assistant) — scroll down
-      setTimeout(() => setIsAtBottom(true), 0);
       requestAnimationFrame(() => scrollToBottom("smooth"));
     }
   }, [messages.length, scrollToBottom]);

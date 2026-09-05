@@ -26,6 +26,10 @@ export function CatAvatar() {
   const [eyeY, setEyeY] = useState(0);
   const [blink, setBlink] = useState(false);
   const [showBubble, setShowBubble] = useState(false);
+  // Bumped whenever a mood/message change should (re-)show the bubble; drives the
+  // auto-hide timer below. See the render-phase adjustment further down.
+  const [bubbleToken, setBubbleToken] = useState(0);
+  const [prevMoodKey, setPrevMoodKey] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const blinkTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -79,16 +83,24 @@ export function CatAvatar() {
     return () => clearTimeout(idleTimerRef.current);
   }, [mood, setMood]);
 
-  // Show bubble briefly when mood changes
+  // Show bubble briefly when mood changes. The state adjustment happens during
+  // render (React's derived-state pattern) rather than in an effect, so the
+  // bubble appears in the same commit as the new mood.
+  const moodKey = `${mood}|${message ?? ""}`;
+  if (prevMoodKey !== moodKey) {
+    setPrevMoodKey(moodKey);
+    if (mood !== "idle") {
+      setShowBubble(true);
+      setBubbleToken((t) => t + 1);
+    }
+  }
+
+  // Auto-hide the mood bubble 4s after it was (re-)shown.
   useEffect(() => {
-    if (mood === "idle") return;
-    const showTimer = setTimeout(() => setShowBubble(true), 0);
+    if (bubbleToken === 0) return;
     const t = setTimeout(() => setShowBubble(false), 4000);
-    return () => {
-      clearTimeout(showTimer);
-      clearTimeout(t);
-    };
-  }, [mood, message]);
+    return () => clearTimeout(t);
+  }, [bubbleToken]);
 
   if (!visible) return null;
 

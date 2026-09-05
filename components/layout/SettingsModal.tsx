@@ -22,6 +22,17 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [tempMaxSteps, setTempMaxSteps] = useState(String(maxToolSteps ?? 15));
   const [defaultWorkspace, setDefaultWorkspace] = useState<string | null>(null);
 
+  // Re-seed the draft fields from the store each time the modal opens. Derived
+  // from the open transition, so it happens during render instead of in an effect.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) {
+      setTempPath(workspacePath);
+      setTempMaxSteps(String(maxToolSteps ?? 15));
+    }
+  }
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -29,10 +40,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     if (open) {
       document.addEventListener("keydown", handleEscape);
       document.body.style.overflow = "hidden";
-      setTimeout(() => {
-        setTempPath(workspacePath);
-        setTempMaxSteps(String(maxToolSteps ?? 15));
-      }, 0);
       fetch("/api/config")
         .then((r) => r.json())
         .then((d) => setDefaultWorkspace(d.defaultWorkspace ?? null))
@@ -42,7 +49,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [open, onClose, workspacePath, maxToolSteps]);
+  }, [open, onClose]);
 
   if (!open) return null;
 

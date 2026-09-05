@@ -35,12 +35,18 @@ export function CommandPalette({ open, onOpenChange }: CommandPaletteProps) {
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Reset the query each time the palette opens. Derived from the open
+  // transition, so it happens during render instead of in an effect.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) setSearch("");
+  }
+
   useEffect(() => {
-    if (open) {
-      setTimeout(() => setSearch(""), 0);
-      // Focus input when palette opens (requestAnimationFrame ensures DOM is ready)
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
+    if (!open) return;
+    // Focus input when palette opens (requestAnimationFrame ensures DOM is ready)
+    requestAnimationFrame(() => inputRef.current?.focus());
   }, [open]);
 
   if (!open) return null;
