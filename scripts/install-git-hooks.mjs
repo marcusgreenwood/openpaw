@@ -1,7 +1,12 @@
 #!/usr/bin/env node
 /**
  * Self-install the repo's git hooks. Wired to the `prepare` npm script so a
- * fresh clone gets the commit-msg hook without adding a dependency.
+ * fresh clone gets the commit-msg hook without adding a dependency, and exposed
+ * as `npm run hooks:install` for installing or repairing them by hand.
+ *
+ * Deliberately not on `postinstall`: that already runs `npx agent-browser
+ * install`, which downloads Chromium, and a hook install has no business
+ * waiting behind it.
  *
  * Deliberately silent no-op when there is nothing to install into: outside a
  * git work tree (tarball / Vercel build), in CI, or with HUSKY=0.

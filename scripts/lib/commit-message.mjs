@@ -52,6 +52,112 @@ export const TYPE_ALIASES = Object.freeze({
   reverts: "revert",
 });
 
+// ---------------------------------------------------------------------------
+// Type inference
+// ---------------------------------------------------------------------------
+
+/**
+ * Leading imperative verb -> type, used only for a subject carrying no type
+ * prefix at all.
+ *
+ * Most of this repo's pre-standard history is written that way ("Add agent
+ * memory feature", "Update AGENTS.md with ...", "Revamp skills manager ..."),
+ * and a hook that rejected all of it would be one authors route around rather
+ * than use. The table is deliberately small and literal: each verb maps to the
+ * type it always means in this history. A first word that is not in it is
+ * rejected rather than guessed at — a wrong type is worse than an error,
+ * because nothing downstream ever re-examines it.
+ */
+export const TYPE_INFERENCE_VERBS = Object.freeze({
+  feat: ["add", "adds", "introduce", "implement", "create", "support", "enable"],
+  fix: ["fix", "fixes", "resolve", "correct", "repair", "patch"],
+  docs: ["document", "describe", "clarify"],
+  test: ["test", "cover"],
+  perf: ["optimize", "optimise"],
+  refactor: [
+    "refactor",
+    "revamp",
+    "overhaul",
+    "improve",
+    "simplify",
+    "clean",
+    "cleanup",
+    "reorganize",
+    "restructure",
+    "rework",
+    "extract",
+  ],
+  chore: ["update", "bump", "upgrade", "rename", "move", "remove", "delete", "drop", "sync", "pin"],
+});
+
+const VERB_TO_TYPE = new Map(
+  Object.entries(TYPE_INFERENCE_VERBS).flatMap(([type, verbs]) =>
+    verbs.map((verb) => [verb, type]),
+  ),
+);
+
+/**
+ * Types a docs-only subject may be promoted to `docs` from.
+ *
+ * `feat` is deliberately not among them. "Add scheduled tasks (crons), prompt
+ * crons, Run now, and update README" names exactly one path — README — and is
+ * plainly a feature; promoting it would be the inference getting it wrong in
+ * the one direction that matters.
+ */
+const DOCS_OVERRIDABLE = new Set(["chore", "refactor"]);
+const DOCS_FILE_RE = /\.(md|mdx|rst|txt)$/i;
+const BARE_DOC_NAMES = new Set(["readme", "license", "changelog", "contributing"]);
+const FILENAME_RE = /^[\w.-]+\.[A-Za-z0-9]{1,5}$/;
+
+/** The words in a subject that name a file or directory, stripped of punctuation. */
+function pathLikeTokens(subject) {
+  return subject
+    .split(/\s+/)
+    .map((token) => token.replace(/^[("'`[<]+/, "").replace(/[)"'`\]>,.:;!?]+$/, ""))
+    .filter(
+      (token) =>
+        token !== "" &&
+        (token.includes("/") || FILENAME_RE.test(token) || BARE_DOC_NAMES.has(token.toLowerCase())),
+    );
+}
+
+function isDocsPath(token) {
+  return (
+    token.startsWith("docs/") ||
+    DOCS_FILE_RE.test(token) ||
+    BARE_DOC_NAMES.has(token.toLowerCase())
+  );
+}
+
+/**
+ * Infer a type for a subject written without one, or null when no rule fits.
+ *
+ * @param {string} subject
+ * @returns {string|null}
+ */
+export function inferSubjectType(subject) {
+  const firstWord = (String(subject ?? "").trim().split(/\s+/, 1)[0] ?? "")
+    .replace(/[^A-Za-z]+$/, "")
+    .toLowerCase();
+  const type = VERB_TO_TYPE.get(firstWord);
+  if (!type) return null;
+
+  // "Update AGENTS.md with the memory feature" is documentation, not a chore.
+  // Only when *every* path named is a docs path: a subject naming both
+  // README.md and lib/chat/handler.ts is a code change that touched the docs.
+  if (DOCS_OVERRIDABLE.has(type)) {
+    const paths = pathLikeTokens(subject);
+    if (paths.length > 0 && paths.every(isDocsPath)) return "docs";
+  }
+  return type;
+}
+
+/** Is this token a type we know, canonical or alias? */
+function isTypeToken(token) {
+  const lower = String(token).toLowerCase();
+  return Object.hasOwn(TYPES, lower) || Object.hasOwn(TYPE_ALIASES, lower);
+}
+
 export const MAX_SUBJECT_LENGTH = 72;
 export const MAX_BODY_LINE_LENGTH = 100;
 
@@ -252,8 +358,21 @@ function normalizeSubject(subject, changes) {
   let next = subject.trim();
   if (next !== subject) changes.push("trimmed subject whitespace");
 
-  const match = HEADER_RE.exec(next);
-  if (!match) return next; // no type present — validation reports it, we never guess one
+  let match = HEADER_RE.exec(next);
+  // A prefix that maps to no type we know is not a type token at all
+  // ("OpenPaw: AI agent chat ..."), so it goes to inference with the rest of
+  // the subject rather than being "corrected" into something it never was.
+  if (match && !isTypeToken(match[1])) match = null;
+
+  if (!match) {
+    const inferred = inferSubjectType(next);
+    // No rule fits: leave the subject exactly as written and let validation
+    // report the missing type.
+    if (inferred === null) return next;
+    next = `${inferred}: ${next}`;
+    changes.push(`inferred type "${inferred}" from the subject's leading verb`);
+    match = HEADER_RE.exec(next);
+  }
 
   const [, rawType, , rawScope, bang, gap, rawDescription] = match;
 

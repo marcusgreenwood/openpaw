@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import {
   EXAMPLES,
   MAX_SUBJECT_LENGTH,
+  inferSubjectType,
   isExemptMessage,
   normalizeCommitMessage,
   splitCommitMessage,
@@ -165,9 +166,81 @@ test("trims trailing whitespace and collapses blank runs", () => {
   assert.equal(text, "feat: add thing\n\nbody one\n\nbody two\n");
 });
 
-test("never invents a type when none is present", () => {
+test("never invents a type for a verb outside the table", () => {
   const { text } = normalizeCommitMessage("random subject with no type\n");
   assert.equal(text, "random subject with no type\n");
+  assert.equal(validateCommitMessage(text).ok, false);
+});
+
+// ---------------------------------------------------------------------------
+// Type inference
+//
+// The subjects here are real ones from this repo's history, which was written
+// before the standard existed. Inference is what keeps the hook usable for the
+// way people already write; the boundary of the table is what keeps it honest.
+// ---------------------------------------------------------------------------
+
+test("infers a type from the subject's leading verb", () => {
+  assert.equal(subjectOf("Add agent memory feature\n"), "feat: add agent memory feature");
+  assert.equal(subjectOf("Fix the double-firing cron\n"), "fix: fix the double-firing cron");
+  assert.equal(subjectOf("Revamp the skills manager\n"), "refactor: revamp the skills manager");
+  assert.equal(subjectOf("Bump next to 16.1.6\n"), "chore: bump next to 16.1.6");
+  assert.equal(subjectOf("Optimize the token counter\n"), "perf: optimize the token counter");
+});
+
+test("reports the inference as a change rather than making it silently", () => {
+  const { changes } = normalizeCommitMessage("Add agent memory feature\n");
+  assert.ok(
+    changes.some((change) => /inferred type "feat"/.test(change)),
+    JSON.stringify(changes),
+  );
+});
+
+test("a subject naming only docs paths infers docs, not chore", () => {
+  assert.equal(inferSubjectType("Update AGENTS.md with memory feature docs"), "docs");
+  assert.equal(inferSubjectType("Update README"), "docs");
+  assert.equal(inferSubjectType("Improve docs/COMMIT_CONVENTION.md wording"), "docs");
+});
+
+test("a subject naming code as well as docs keeps the verb's type", () => {
+  assert.equal(inferSubjectType("Update README.md and lib/chat/handler.ts"), "chore");
+  assert.equal(inferSubjectType("Update the cron runner"), "chore");
+});
+
+test("feat is never promoted to docs by a single doc path", () => {
+  // "Add scheduled tasks (crons), prompt crons, Run now, and update README" is
+  // a feature that also touched a doc. Promoting it would be the inference
+  // getting it wrong in the one direction nothing downstream would catch.
+  assert.equal(
+    inferSubjectType("Add scheduled tasks (crons), prompt crons, Run now, and update README"),
+    "feat",
+  );
+});
+
+test("returns null rather than guessing when no verb matches", () => {
+  for (const subject of [
+    "random subject with no type",
+    "OpenPaw: AI agent chat with tools",
+    "Initial commit from Create Next App",
+    "#123 fix the thing",
+  ]) {
+    assert.equal(inferSubjectType(subject), null, subject);
+  }
+});
+
+test("an unknown prefix is not mistaken for a type to correct", () => {
+  // "OpenPaw:" parses as <token>: but names no type, so it must not be
+  // lowercased into "openpaw:" and blessed — it goes to inference, which
+  // declines it, and validation reports it.
+  const { text } = normalizeCommitMessage("OpenPaw: AI agent chat with tools\n");
+  assert.equal(text, "OpenPaw: AI agent chat with tools\n");
+  assert.equal(validateCommitMessage(text).ok, false);
+});
+
+test("inference leaves an over-length result to be reported, not truncated", () => {
+  const long = "Add scheduled tasks (crons), prompt crons, Run now, and update README\n";
+  const { text } = normalizeCommitMessage(long);
+  assert.match(text, /^feat: add scheduled tasks/);
   assert.equal(validateCommitMessage(text).ok, false);
 });
 
@@ -427,14 +500,18 @@ const ACCEPTED_BY_HOOK = [
   "feat: add thing\n\nNon-obvious: the hook rewrites the file in place, so\nthe editor must reload it.\n",
   "feat: add thing\n\nFollow-up: wire the range linter into CI.\n",
   "feat: add thing\n# On branch main\n",
+  // Inferred from the leading verb — this repo's pre-standard history.
+  "Add a 3D cat avatar\n",
+  "Update AGENTS.md with memory feature documentation\n",
+  "Revamp the skills manager\n",
   "Merge branch 'main' into feature\n",
   "fixup! feat: add thing\n",
 ];
 
 const REJECTED_BY_HOOK = [
   "random subject with no type\n",
-  "Add a 3D cat avatar\n",
   "wip: half-finished thing\n",
+  "OpenPaw: AI agent chat with tools, skills, and multi-channel support\n",
   "feat:\n",
   "feat(): add thing\n",
   "feat: ...\n", // nothing but periods — stripping leaves an empty description

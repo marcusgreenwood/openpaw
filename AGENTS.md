@@ -29,9 +29,15 @@ version for agents working in this repo:
 - Blank line between subject and body; git trailers (`Co-Authored-By`, `Nightshift-Task`, …) in the
   final paragraph, one `Key: value` per line.
 - The hook auto-fixes casing, a missing space after the colon, a trailing period and a missing blank
-  line; it rejects a missing or unknown type rather than guessing one.
-- Merge/revert/`fixup!`/`squash!` messages are exempt. Bypass with `SKIP_COMMIT_LINT=1 git commit`.
-- Hooks self-install via the `prepare` npm script; re-run with `npm run prepare` if they go missing.
+  line, and infers a type from the subject's leading verb (`Add …` → `feat`, `Update …` → `chore`,
+  `Revamp …` → `refactor`; a subject naming only docs paths → `docs`). A leading verb outside that
+  table is rejected rather than guessed at.
+- Merge/revert/`fixup!`/`squash!` messages are exempt, as is any commit made while a merge, rebase,
+  cherry-pick or revert is in progress. Bypass with `SKIP_COMMIT_MSG_HOOK=1 git commit`.
+- Hooks self-install via the `prepare` npm script; re-run with `npm run hooks:install` if they go
+  missing.
+- `npm run commit:check` audits `origin/main..HEAD`; `node scripts/commit-msg.mjs --stdin` shows what
+  the hook would do to a message without committing.
 - Existing history predates the standard and is **not** rewritten.
 
 ### Key caveats
