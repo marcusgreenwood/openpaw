@@ -237,8 +237,12 @@ can do it: every mode that touches history is read-only.
 npm run test:commit-msg
 ```
 
-Unit tests for the normalizer/validator core in `scripts/lib/commit-message.mjs`, using the
-built-in `node:test` runner (no extra dependency).
+Two suites, both on the built-in `node:test` runner (no extra dependency):
+
+- `scripts/test-commit-message.mjs` — the normalizer/validator core in
+  `scripts/lib/commit-message.mjs`: what is accepted, what is auto-fixed, what is rejected.
+- `scripts/test-commit-msg-cli.mjs` — `scripts/commit-msg.mjs` itself, run as a subprocess, so
+  the exit codes and the text an author actually sees are covered too.
 
 ## Bypassing the hook
 
