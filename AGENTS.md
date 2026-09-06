@@ -13,7 +13,32 @@ See `package.json` scripts and `README.md` for full details:
 - **Dev server:** `npm run dev` (port 3000)
 - **Build:** `npm run build`
 - **Lint:** `npm run lint` (ESLint; has pre-existing warnings/errors in the repo)
+- **Lint commits:** `npm run lint:commits` (Conventional Commits check over `origin/main..HEAD`)
 - **Test:** `npm run test:usage` (usage tracking tests; requires `GOOGLE_GENERATIVE_AI_API_KEY`)
+- **Test commit messages:** `npm run test:commit-msg` (`node:test` unit tests, no API key needed)
+
+### Commit conventions
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) and
+are enforced by the `.husky/commit-msg` hook. Full rules live in `CONTRIBUTING.md`; the short
+version for agents working in this repo:
+
+- Format: `<type>(<optional scope>)<!>: <subject>` — e.g. `feat(crons): add Run now button`.
+- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- Subject: imperative, lowercase first word (identifiers/acronyms exempt), no trailing period, ≤ 72 chars.
+- Blank line between subject and body; git trailers (`Co-Authored-By`, `Nightshift-Task`, …) in the
+  final paragraph, one `Key: value` per line.
+- The hook auto-fixes casing, a missing space after the colon, a trailing period and a missing blank
+  line, and infers a type from the subject's leading verb (`Add …` → `feat`, `Update …` → `chore`,
+  `Revamp …` → `refactor`; a subject naming only docs paths → `docs`). A leading verb outside that
+  table is rejected rather than guessed at.
+- Merge/revert/`fixup!`/`squash!` messages are exempt, as is any commit made while a merge, rebase,
+  cherry-pick or revert is in progress. Bypass with `SKIP_COMMIT_MSG_HOOK=1 git commit`.
+- Hooks self-install via the `prepare` npm script; re-run with `npm run hooks:install` if they go
+  missing.
+- `npm run commit:check` audits `origin/main..HEAD`; `node scripts/commit-msg.mjs --stdin` shows what
+  the hook would do to a message without committing.
+- Existing history predates the standard and is **not** rewritten.
 
 ### Key caveats
 

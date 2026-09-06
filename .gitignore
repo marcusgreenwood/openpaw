@@ -43,6 +43,9 @@ yarn-error.log*
 # claw config (contains channel secrets)
 .claw/
 
+# git hooks (husky's generated shims; only .husky/commit-msg is tracked)
+.husky/_/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

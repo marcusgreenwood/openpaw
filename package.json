@@ -7,10 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:commits": "node scripts/lint-commits.mjs",
+    "commit:msg": "node scripts/commit-msg.mjs",
+    "commit:check": "node scripts/commit-msg.mjs --range",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
     "test:usage": "tsx scripts/test-usage.ts",
-    "postinstall": "npx agent-browser install",
-    "prepare": "husky",
-    "commitlint": "commitlint --from HEAD~1 --to HEAD"
+    "test:commit-msg": "node --test scripts/test-commit-message.mjs scripts/test-commit-msg-cli.mjs",
+    "prepare": "node scripts/install-git-hooks.mjs",
+    "postinstall": "npx agent-browser install"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.46",
@@ -46,8 +50,6 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.4.2",
-    "@commitlint/config-conventional": "^20.4.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -156,6 +156,12 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 | `npm run build` | Build for production |
 | `npm run start` | Run production server |
 | `npm run test:usage` | Run usage tracking tests |
+| `npm run test:commit-msg` | Run commit-message normalizer tests |
+| `npm run lint:commits` | Check commit messages against Conventional Commits |
+| `npm run commit:check` | Audit commit messages on the current branch |
+| `npm run hooks:install` | Install the repo's git hooks |
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), enforced by a `commit-msg` git hook — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

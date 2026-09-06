@@ -1,2 +1,4 @@
 #!/usr/bin/env sh
-npx --no -- commitlint --edit $1
+# Conventional Commits normalizer/validator. See CONTRIBUTING.md.
+# Bypass with: SKIP_COMMIT_MSG_HOOK=1 git commit ...
+exec node "$(dirname "$0")/../scripts/commit-msg.mjs" "$1"
