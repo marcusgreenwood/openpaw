@@ -1,3 +1,11 @@
+/**
+ * @file Skills manager — caching layer and install helper on top of the skill loader.
+ *
+ * Provides {@link getSkills} (with a short-lived TTL cache), {@link invalidateSkillsCache},
+ * and {@link installSkill} which shells out to `npx skills add` and copies the result
+ * into the user-skills directory.
+ */
+
 import { loadSkills, USER_SKILLS_DIR } from "./loader";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs/promises";
@@ -9,6 +17,13 @@ import { SKILL_INSTALL_TIMEOUT_MS } from "@/lib/chat/config";
 const cache = new Map<string, { skills: Skill[]; time: number }>();
 const CACHE_TTL = 10_000;
 
+/**
+ * Returns all available skills for the given workspace, using an in-memory cache
+ * with a {@link CACHE_TTL}-millisecond TTL to avoid repeated filesystem scans.
+ *
+ * @param workspacePath - Optional workspace path forwarded to {@link loadSkills}.
+ * @returns Cached or freshly loaded array of {@link Skill} objects.
+ */
 export async function getSkills(workspacePath?: string): Promise<Skill[]> {
   const key = workspacePath || "__default__";
   const cached = cache.get(key);
@@ -20,6 +35,10 @@ export async function getSkills(workspacePath?: string): Promise<Skill[]> {
   return skills;
 }
 
+/**
+ * Clears the entire skills cache, forcing the next {@link getSkills} call to
+ * re-scan the filesystem. Called automatically after a successful {@link installSkill}.
+ */
 export function invalidateSkillsCache() {
   cache.clear();
 }

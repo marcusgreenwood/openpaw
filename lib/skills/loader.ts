@@ -1,3 +1,12 @@
+/**
+ * @file Skill loader — discovers and parses SKILL.md files from multiple directories.
+ *
+ * Scans four locations in priority order (built-in → legacy user → workspace user →
+ * workspace .claude/skills) and deduplicates by skill name so that built-in skills
+ * always win on conflicts. Each skill's body is sanitized and length-capped before
+ * being returned as a {@link Skill} object.
+ */
+
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import matter from "gray-matter";
@@ -66,6 +75,17 @@ async function listSubdirs(dir: string): Promise<string[]> {
   }
 }
 
+/**
+ * Loads all available skills from built-in and user-installed directories.
+ *
+ * Skills are returned in priority order (built-in first). Duplicate names are
+ * silently dropped — the first occurrence wins. SKILL.md files that are missing
+ * required frontmatter fields (`name`, `description`) are skipped.
+ *
+ * @param workspacePath - Optional path to the active workspace; falls back to
+ *   {@link DEFAULT_WORKSPACE} when omitted.
+ * @returns Array of parsed {@link Skill} objects sorted by discovery order.
+ */
 export async function loadSkills(workspacePath?: string): Promise<Skill[]> {
   const skills: Skill[] = [];
   const seen = new Set<string>(); // dedupe by skill name

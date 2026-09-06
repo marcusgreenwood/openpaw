@@ -117,8 +117,6 @@ const CUSTOM_CHANNELS: ChannelDef[] = [
   },
 ];
 
-const _ALL_CHANNELS = [...CHAT_SDK_CHANNELS, ...CUSTOM_CHANNELS];
-
 export function ChannelsPanel() {
   const [data, setData] = useState<ChannelsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -185,7 +183,6 @@ export function ChannelsPanel() {
         return (
           <ChannelCard
             key={def.name}
-            name={def.name}
             label={def.label}
             icon={def.icon}
             enabled={ch.enabled}
@@ -209,7 +206,6 @@ export function ChannelsPanel() {
         return (
           <ChannelCard
             key={def.name}
-            name={def.name}
             label={def.label}
             icon={def.icon}
             enabled={ch.enabled}

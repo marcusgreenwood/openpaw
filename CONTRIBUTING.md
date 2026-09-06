@@ -119,6 +119,27 @@ BREAKING CHANGE: sessions stored before v0.1 are no longer readable.
 
 ## Enforcement
 
+### Why not commitlint
+
+This repo briefly used [commitlint](https://commitlint.js.org/) for the same job. The rules here
+are the same ones; what changed is what happens when a message breaks them.
+
+Commitlint can only say no. Roughly a third of this repo's history has no type prefix at all,
+and a validator that rejects `Add agent memory feature` without being able to write
+`feat: add agent memory feature` puts the work of satisfying it on every author, every commit —
+which is how a hook ends up bypassed rather than used. The normalizer fixes what is mechanically
+fixable and reserves rejection for the decisions only a human can make, which is a materially
+different experience at the moment of committing.
+
+It also costs nothing: two dependencies (`@commitlint/cli`, `@commitlint/config-conventional`)
+and a config file were removed in favour of ~600 lines of plain Node ESM run by the Node already
+needed to build the app, with tests. One source of truth for the rules, rather than a config file
+and a normalizer that can drift apart.
+
+The one rule that changed value is the subject limit: **72 characters, not 100.** 72 is the
+conventional git limit — it is what keeps `git log --oneline` and GitHub's commit list from
+truncating. Everything else (the type list, imperative mood, no trailing period) is unchanged.
+
 ### The `commit-msg` hook
 
 `.husky/commit-msg` runs `scripts/commit-msg.mjs` on every commit. It first **auto-fixes** the

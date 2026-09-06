@@ -30,7 +30,7 @@ export function GitStatus() {
   }, [workspacePath]);
 
   useEffect(() => {
-    fetchStatus();
+    setTimeout(fetchStatus, 0);
     const interval = setInterval(fetchStatus, 10000);
     return () => clearInterval(interval);
   }, [fetchStatus]);

@@ -1,7 +1,23 @@
+/**
+ * @file Context search tool — finds files and code in the workspace relevant to a query.
+ *
+ * Delegates to {@link searchWorkspaceContext} which combines TF-IDF filename scoring
+ * with line-level grep to return ranked, snippet-annotated results.
+ */
+
 import { tool } from "ai";
 import { z } from "zod";
 import { searchWorkspaceContext } from "@/lib/context/search";
 
+/**
+ * Factory that returns an AI tool for searching workspace files and source code.
+ *
+ * Returns up to 5 results, each with a relevance score and up to 500 relevant lines.
+ * Errors are caught and surfaced as a plain-text message rather than thrown.
+ *
+ * @param workspacePath - Root directory of the workspace to search within.
+ * @returns A configured AI tool instance bound to the given workspace.
+ */
 export const searchContext = (workspacePath: string) =>
   tool({
     description:

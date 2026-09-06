@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { PROVIDER_REGISTRY } from "@/lib/models/providers";
 import { useSessionsStore } from "@/lib/store/sessions";
 import { useConfiguredProviders } from "@/lib/hooks/use-configured-providers";
 

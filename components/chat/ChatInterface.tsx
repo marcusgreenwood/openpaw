@@ -55,9 +55,7 @@ function deriveTitleFromMessages(messages: UIMessage[]): string | null {
 
 export function ChatInterface() {
   const {
-    modelId,
     workspacePath,
-    maxToolSteps,
     activeSessionId,
     createSession,
     updateSessionTitle,
@@ -363,7 +361,6 @@ export function ChatInterface() {
             messages={messages}
             status={status}
             error={error}
-            onSuggestion={(text) => sendMessage({ text })}
             onChoiceSelect={(option) => sendMessage({ text: option })}
             onContinue={() =>
               sendMessage({ text: "Please continue from where you left off." })

@@ -1,3 +1,14 @@
+/**
+ * @file Cron management tools — create, update, delete, and list scheduled tasks.
+ *
+ * Supports two task types:
+ *  - `command` — executes a bash command in the workspace on each run.
+ *  - `prompt`  — spawns a new AI chat session with a detailed prompt on each run.
+ *
+ * All tools delegate persistence to {@link createCronJob}/{@link updateCronJob}/
+ * {@link deleteCronJob}/{@link loadCrons} from the cron-store module.
+ */
+
 import { tool } from "ai";
 import { z } from "zod";
 import {
@@ -7,6 +18,7 @@ import {
   loadCrons,
 } from "@/lib/crons/cron-store";
 
+/** Shared Zod schema describing the fields common to create and update operations. */
 const cronSchema = z.object({
   name: z.string().describe("Short descriptive name for the scheduled task"),
   schedule: z
@@ -38,6 +50,14 @@ const cronSchema = z.object({
   enabled: z.boolean().optional().default(true),
 });
 
+/**
+ * Factory that returns an AI tool for creating a new cron job.
+ *
+ * Infers `type` from the presence of `prompt` or `command` if not supplied explicitly.
+ *
+ * @param workspacePath - Default workspace path applied when none is provided in the input.
+ * @returns A configured AI tool instance.
+ */
 export const createCronTool = (workspacePath: string) =>
   tool({
     description:
@@ -67,10 +87,20 @@ export const createCronTool = (workspacePath: string) =>
     },
   });
 
+/** Extends {@link cronSchema} with the `id` field required to identify the target job. */
 const updateCronSchema = cronSchema.extend({
   id: z.string().describe("ID of the cron job to update"),
 });
 
+/**
+ * Factory that returns an AI tool for updating an existing cron job.
+ *
+ * Only fields present in the input are forwarded to the store; omitted optional
+ * fields leave the existing values unchanged.
+ *
+ * @param workspacePath - Fallback workspace path when none is provided in the input.
+ * @returns A configured AI tool instance.
+ */
 export const updateCronTool = (workspacePath: string) =>
   tool({
     description:
@@ -97,6 +127,11 @@ export const updateCronTool = (workspacePath: string) =>
     },
   });
 
+/**
+ * Returns an AI tool for permanently removing a cron job by ID.
+ *
+ * @returns A configured AI tool instance.
+ */
 export const deleteCronTool = () =>
   tool({
     description: "Delete a scheduled task. Use when the user wants to remove a cron job.",
@@ -114,6 +149,11 @@ export const deleteCronTool = () =>
     },
   });
 
+/**
+ * Returns an AI tool that lists all configured cron jobs.
+ *
+ * @returns A configured AI tool instance.
+ */
 export const listCronsTool = () =>
   tool({
     description:

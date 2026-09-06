@@ -1,0 +1,3 @@
+# Pre-commit hook placeholder.
+# Commit message linting is handled by the commit-msg hook, which runs
+# scripts/commit-msg.mjs. See CONTRIBUTING.md.

@@ -1,3 +1,11 @@
+/**
+ * @file Memory tools — save, search, and list long-term agent memories via the Minns SDK.
+ *
+ * Memories are scoped to an agent session and persisted through {@link saveUserContext},
+ * {@link searchMemoryFacts}, and {@link getMemories} from the Minns client.
+ * All tools degrade gracefully when Minns is not configured.
+ */
+
 import { tool } from "ai";
 import { z } from "zod";
 import {
@@ -6,6 +14,15 @@ import {
   getMemories,
 } from "@/lib/memory/minns-client";
 
+/**
+ * Factory that returns an AI tool for persisting a fact or preference to long-term memory.
+ *
+ * The memory is stored as a semantic context event associated with `sessionId`,
+ * allowing it to be retrieved in future conversations via {@link recallMemory}.
+ *
+ * @param sessionId - Session identifier used to tag the stored memory.
+ * @returns A configured AI tool instance bound to the session.
+ */
 export const saveMemoryTool = (sessionId: string) =>
   tool({
     description:
@@ -31,6 +48,11 @@ export const saveMemoryTool = (sessionId: string) =>
     },
   });
 
+/**
+ * AI tool that searches stored memories for facts and episodic memories relevant
+ * to a query. Combines claim search (semantic fact matching) with episodic memory
+ * retrieval and formats the combined results as Markdown.
+ */
 export const recallMemory = tool({
   description:
     "Search memories for relevant context. Use this to recall previously saved information that may be useful for the current conversation.",
@@ -75,6 +97,10 @@ export const recallMemory = tool({
   },
 });
 
+/**
+ * AI tool that returns a paginated list of all stored episodic memories,
+ * including their tier classification, takeaway, and causal notes when present.
+ */
 export const listMemories = tool({
   description:
     "List the agent's stored memories. Use this to see what information has been saved to long-term memory.",
@@ -112,6 +138,13 @@ export const listMemories = tool({
   },
 });
 
+/**
+ * Returns the three memory tools ({@link saveMemoryTool}, {@link recallMemory},
+ * {@link listMemories}) as a named record ready to spread into {@link allTools}.
+ *
+ * @param sessionId - Session identifier forwarded to {@link saveMemoryTool}.
+ * @returns Object mapping tool names to configured tool instances.
+ */
 export function memoryTools(sessionId: string) {
   return {
     saveMemory: saveMemoryTool(sessionId),
