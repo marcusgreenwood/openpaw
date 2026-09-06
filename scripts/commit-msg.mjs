@@ -24,6 +24,7 @@ import {
   SUBJECT_GRAMMAR,
   isExemptMessage,
   normalizeCommitMessage,
+  splitCommitMessage,
   validateCommitMessage,
 } from "./lib/commit-message.mjs";
 import { lintRange } from "./lib/commit-range.mjs";
@@ -156,7 +157,10 @@ function runHook(file) {
     for (const change of changes) {
       console.error(c(DIM, `commit-msg: normalized: ${change}`));
     }
-    console.error(c(DIM, `commit-msg: subject is now: ${text.split("\n")[0]}`));
+    // The parsed subject, not line 0: git's template opens with a blank line
+    // that the normalizer deliberately preserves, so line 0 is often not it.
+    const { subject } = splitCommitMessage(text);
+    console.error(c(DIM, `commit-msg: subject is now: ${subject}`));
   }
 
   const { ok, errors, warnings } = validateCommitMessage(text);

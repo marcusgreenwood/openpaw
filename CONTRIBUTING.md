@@ -215,9 +215,16 @@ npm run lint:commits -- HEAD~5..HEAD       # any range
 npm run lint:commits -- --report-only      # report without failing
 ```
 
-Useful in CI to check every commit on a PR branch. A commit that fails but that the normalizer
-*could* have fixed is reported as `auto-fixable` with the subject the hook would have written,
-which separates "this predates the hook" from "this needs a human to name a type".
+A commit that fails but that the normalizer *could* have fixed is reported as `auto-fixable` with
+the subject the hook would have written, which separates "this predates the hook" from "this needs
+a human to name a type".
+
+**Enforcement is local-only today.** This repo has no CI (there is no `.github/workflows`), so
+nothing checks commit messages on a pull request. The standard is enforced by the `commit-msg`
+hook on the machine that makes the commit, which means it applies only to clones that have run
+`npm run hooks:install` and can always be bypassed with `SKIP_COMMIT_MSG_HOOK=1`. `lint:commits`
+exists so that a future CI job — or a reviewer, by hand — can check a branch in one command; wiring
+it to a workflow is left for whoever adds CI to this repo.
 
 **Existing history is not rewritten.** Commits from before this standard was introduced show as
 `FAIL`, and that report is documentation of where the line falls, not a task list — rewriting a

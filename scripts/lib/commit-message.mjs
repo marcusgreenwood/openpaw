@@ -422,10 +422,18 @@ function normalizeSubject(subject, changes) {
  * to one. Reports the collapse but not the edge trim: git performs both itself
  * under either default cleanup mode, and every message file ends with a newline,
  * so reporting the edges would fire on almost every commit for no reason.
+ *
+ * The last leading blank is kept when a comment line follows it, because
+ * `isCommentLine` exempts index 0 so that a subject may itself start with `#`
+ * under `--cleanup=whitespace`. git's editor template is exactly that shape —
+ * a blank line, then its `# Please enter the commit message` block — so an
+ * author who types their subject *below* the block would otherwise have git's
+ * own boilerplate promoted to index 0 and re-read as the subject, rejecting a
+ * perfectly good message and leaving the rewritten file to do it again.
  */
 function normalizeBlankLines(lines, changes) {
   const out = lines.slice();
-  while (out.length && out[0] === "") out.shift();
+  while (out.length && out[0] === "" && !(out[1] ?? "").startsWith("#")) out.shift();
   while (out.length && out[out.length - 1] === "") out.pop();
 
   const collapsed = [];

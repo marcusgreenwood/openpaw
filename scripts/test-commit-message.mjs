@@ -354,6 +354,44 @@ test("git's trailing template block still lands at the end", () => {
   );
 });
 
+test("a subject typed below git's template block is still the subject", () => {
+  // git's editor template is always a blank line followed by its `#` block, so
+  // an author who scrolls past it and types underneath produces this shape.
+  // Stripping that leading blank would promote `# Please enter...` to index 0,
+  // where `isCommentLine` exempts it, and git's own boilerplate would be read
+  // as the subject — rejecting a valid message, and again on every retry.
+  const raw = [
+    "",
+    "# Please enter the commit message for your changes. Lines starting",
+    "# with '#' will be ignored, and an empty message aborts the commit.",
+    "#",
+    "# On branch main",
+    "feat: add thing below comments",
+    "",
+  ].join("\n");
+
+  const { text, changes } = normalizeCommitMessage(raw);
+  assert.equal(text, raw, "git's template must not be shifted onto the subject line");
+  assert.deepEqual(changes, []);
+  assert.equal(splitCommitMessage(text).subject, "feat: add thing below comments");
+  assert.equal(validateCommitMessage(text).ok, true);
+});
+
+test("a messy subject below git's template is normalized, not misread", () => {
+  const raw = [
+    "",
+    "# Please enter the commit message for your changes. Lines starting",
+    "# with '#' will be ignored, and an empty message aborts the commit.",
+    "Feature:Add thing below comments.",
+    "",
+  ].join("\n");
+
+  const { text } = normalizeCommitMessage(raw);
+  assert.equal(splitCommitMessage(text).subject, "feat: add thing below comments");
+  assert.equal(validateCommitMessage(text).ok, true);
+  assert.equal(normalize(text), text, "the fixed message must be a fixed point");
+});
+
 test("the verbose scissors section is preserved as a trailing block", () => {
   const raw = [
     "feat: add thing",
@@ -393,6 +431,8 @@ test("normalization stays idempotent with comments interleaved", () => {
     "feat: add thing\n\nfirst\n\n# note\n\nsecond\n",
     "Feat:Add thing.\n\nbody\n\n# On branch main\n",
     "#123 fix the thing\n",
+    "\n# Please enter the commit message.\n# On branch main\nfeat: add thing below comments\n",
+    "\n# Please enter the commit message.\nFeature:Add thing below comments.\n",
   ];
   for (const input of inputs) {
     const once = normalize(input);
