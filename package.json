@@ -12,7 +12,7 @@
     "commit:check": "node scripts/commit-msg.mjs --range",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "test:usage": "tsx scripts/test-usage.ts",
-    "test:commit-msg": "node --test scripts/test-commit-message.mjs",
+    "test:commit-msg": "node --test scripts/test-commit-message.mjs scripts/test-commit-msg-cli.mjs",
     "prepare": "node scripts/install-git-hooks.mjs",
     "postinstall": "npx agent-browser install"
   },

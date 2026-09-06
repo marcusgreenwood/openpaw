@@ -17,6 +17,7 @@ import { execFileSync } from "node:child_process";
 import {
   isExemptMessage,
   normalizeCommitMessage,
+  splitCommitMessage,
   validateCommitMessage,
 } from "./commit-message.mjs";
 
@@ -66,7 +67,11 @@ export function readRange(range) {
       const message = record.slice(separator + 1);
       return {
         sha: record.slice(0, separator).trim().slice(0, 8),
-        subject: message.split("\n")[0],
+        // The parsed subject rather than line 0, matching commit-msg.mjs. `git
+        // log` output rarely differs, but a `--cleanup=verbatim` commit can
+        // carry a leading blank line, and one rule for "the subject" is worth
+        // more than the two characters this saves.
+        subject: splitCommitMessage(message).subject,
         message,
       };
     });
@@ -123,7 +128,7 @@ export function lintRange(range, { log = console.log } = {}) {
 
     result.failed += 1;
     const normalized = normalizeCommitMessage(message).text;
-    const fixed = normalized.split("\n")[0];
+    const fixed = splitCommitMessage(normalized).subject;
     const autoFixable = validateCommitMessage(normalized).ok;
     if (autoFixable) log(`          auto-fixable: the hook would have written "${fixed}"`);
     result.failures.push({

@@ -110,7 +110,10 @@ function readMessageFile(file) {
 
 /** Print the rejection an author has to act on: what is wrong, and what to write instead. */
 function reportRejection(text, errors) {
-  const subject = text.split("\n")[0];
+  // The parsed subject, not line 0: git's editor template opens with a blank
+  // line and a "#" comment block that the normalizer deliberately preserves, so
+  // for an author who wrote below that block line 0 is blank, not the subject.
+  const { subject } = splitCommitMessage(text);
   console.error("");
   console.error(c(RED, "✖ commit message does not follow Conventional Commits"));
   console.error("");
@@ -157,8 +160,6 @@ function runHook(file) {
     for (const change of changes) {
       console.error(c(DIM, `commit-msg: normalized: ${change}`));
     }
-    // The parsed subject, not line 0: git's template opens with a blank line
-    // that the normalizer deliberately preserves, so line 0 is often not it.
     const { subject } = splitCommitMessage(text);
     console.error(c(DIM, `commit-msg: subject is now: ${subject}`));
   }
@@ -191,7 +192,7 @@ function runCheck(file) {
   if (text !== raw) {
     console.error(c(YELLOW, `commit-msg: ${file} needs normalizing:`));
     for (const change of changes) console.error(`  - ${change}`);
-    console.error(`  would become: ${text.split("\n")[0]}`);
+    console.error(`  would become: ${splitCommitMessage(text).subject}`);
     process.exit(1);
   }
 
