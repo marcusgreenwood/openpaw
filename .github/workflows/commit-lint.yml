@@ -1,0 +1,47 @@
+name: Commit Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  commit-lint:
+    name: Lint commit messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the merge-base with the base branch is available;
+          # the default shallow clone cannot resolve the branch range.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # checkout only guarantees the PR head; fetch the base branch so
+      # origin/<base>..HEAD resolves.
+      - name: Fetch base branch
+        run: git fetch --no-tags origin "${{ github.base_ref }}"
+
+      # Both flags are deliberate; a bare `npm ci` fails on a clean checkout
+      # for two independent reasons, neither of them introduced here:
+      #
+      #   --ignore-scripts    "prepare": "husky" runs on install, but husky is
+      #                       in neither devDependencies nor package-lock.json.
+      #                       PR #11 declares it; drop this flag once that lands.
+      #                       It also skips the "postinstall" browser download,
+      #                       which this job does not need.
+      #   --legacy-peer-deps  @tremor/react@3 peers on react ^18 while the
+      #                       project is on react 19, so npm 11 refuses the
+      #                       lockfile as ERESOLVE. The lockfile can only have
+      #                       been built with this override; the flag reproduces
+      #                       how it was made rather than changing any version.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+      - name: Lint commit messages
+        env:
+          COMMITLINT_BASE: ${{ github.base_ref }}
+        run: npm run lint:commits

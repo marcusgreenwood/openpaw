@@ -55,3 +55,21 @@ exponential backoff. Users see a loading indicator during retry.
 
 The commit-msg hook runs `commitlint` automatically on every commit.
 If your commit message is invalid, the commit will be rejected with an error message explaining what needs to be fixed.
+
+### Validation in CI
+
+The `commit-msg` hook is local-only. It runs only in clones that installed it, and
+`git commit --no-verify` bypasses it, so it cannot be the only thing standing behind
+the standard.
+
+The `Commit Lint` workflow (`.github/workflows/commit-lint.yml`) re-checks **every**
+commit on a pull request against its base branch, so a branch pushed from a clone that
+never installed hooks is still held to the same rules. It runs the same check you can
+run yourself:
+
+```
+npm run lint:commits
+```
+
+By default that lints `origin/main..HEAD`; set `COMMITLINT_BASE` to target a different
+base branch (CI sets it to the pull request's base).
