@@ -38,6 +38,31 @@ import { isMemoryEnabled, recallMemories, recordChatEvent } from "@/lib/memory";
 /*  Shared setup                                                      */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Assembles everything a chat call needs: the model, the system prompt, the tool set and
+ * the resolved workspace directory.
+ *
+ * The workspace is resolved from `workspacePath` (relative paths against the project
+ * root), falling back to `DEFAULT_WORKSPACE`. As a guard against the agent operating on
+ * the app's own source tree, a path that resolves to the project root is redirected to
+ * `<projectRoot>/workspace`. The directory is created if missing.
+ *
+ * When `lastUserMessage` is supplied, the system prompt may be extended with two
+ * best-effort sections, each of which is skipped silently on failure:
+ * - **Memory Context** — recalled facts, experiences and strategies, only when Minns
+ *   memory is configured
+ * - **Workspace Context** — excerpts from workspace files, only when the message looks
+ *   code-related by keyword match
+ *
+ * Side effects: creates the workspace directory, loads API keys from the key store, reads
+ * skills from disk, and may call the Minns API.
+ *
+ * @param modelId - Model id in `"<provider>/<model>"` form.
+ * @param workspacePath - Workspace directory; absolute, or relative to the project root.
+ * @param sessionId - Session id, passed through to tools that record against a session.
+ * @param lastUserMessage - Most recent user text, used to drive memory and context recall.
+ * @returns The resolved `model`, `systemPrompt`, `tools` and absolute `workspace` path.
+ */
 export async function buildContext(
   modelId: string,
   workspacePath?: string,
@@ -191,6 +216,7 @@ const CODE_KEYWORDS = [
   "client",
 ];
 
+/** True if the message contains any {@link CODE_KEYWORDS} token, gating context injection. */
 function looksCodeRelated(message: string): boolean {
   const lower = message.toLowerCase();
   return CODE_KEYWORDS.some((kw) => lower.includes(kw));
@@ -200,6 +226,23 @@ function looksCodeRelated(message: string): boolean {
 /*  Streaming handler (React frontend)                                */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Runs a chat turn as a stream, for the browser UI.
+ *
+ * The agentic loop stops at `maxToolSteps` steps or as soon as the `askChoice` tool is
+ * called, since that tool hands control back to the user. On completion this records token
+ * usage against the session and, when memory is configured, stores the exchange — both as
+ * fire-and-forget side effects that never fail the response.
+ *
+ * @param messages - Conversation so far, in AI SDK UI message form.
+ * @param modelId - Model id in `"<provider>/<model>"` form.
+ * @param workspacePath - Workspace directory; absolute, or relative to the project root.
+ * @param sessionId - Session id used for usage accounting and memory recording. Without
+ *   it, usage is still recorded but the exchange is not written to memory.
+ * @param maxToolSteps - Cap on tool-use steps. Defaults to `MAX_TOOL_STEPS`.
+ * @returns The `streamText` result; callers turn it into a response with
+ *   `toUIMessageStreamResponse()`.
+ */
 export async function handleChatStreaming(
   messages: UIMessage[],
   modelId = "anthropic/claude-sonnet-4-5",
@@ -256,13 +299,36 @@ export async function handleChatStreaming(
 /*  Blocking handler (webhooks: Telegram, Slack, WhatsApp)            */
 /* ------------------------------------------------------------------ */
 
+/** The outcome of a non-streaming chat turn. */
 export interface BlockingChatResult {
+  /** The assistant's reply, or `"(no response)"` when the model returned nothing. */
   text: string;
+  /** Total tool calls made across all steps. */
   toolCalls: number;
+  /** Why generation stopped, as reported by the provider. */
   finishReason: string;
+  /** Wall-clock duration in milliseconds. */
   durationMs: number;
 }
 
+/**
+ * Runs a chat turn to completion and returns the final text.
+ *
+ * Used by callers that cannot stream — the channel webhooks (Telegram, WhatsApp, and the
+ * Chat SDK platforms) and the prompt-cron runner. The call races a hard
+ * `CHAT_BLOCKING_TIMEOUT_MS` timeout, since those callers sit behind platform request
+ * deadlines.
+ *
+ * Unlike {@link handleChatStreaming}, this does not record usage or memory — it takes no
+ * session id.
+ *
+ * @param messages - Conversation so far, in AI SDK model message form.
+ * @param modelId - Model id in `"<provider>/<model>"` form.
+ * @param workspacePath - Workspace directory; absolute, or relative to the project root.
+ * @returns The reply text with tool-call count, finish reason and duration.
+ * @throws Error if generation exceeds `CHAT_BLOCKING_TIMEOUT_MS`. Callers are expected to
+ *   catch this and surface a timeout message to the user.
+ */
 export async function handleChatBlocking(
   messages: ModelMessage[],
   modelId = "anthropic/claude-sonnet-4-5",
