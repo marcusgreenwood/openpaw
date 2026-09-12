@@ -1,3 +1,14 @@
+/**
+ * Read-only session sharing, persisted to .claw/shared-sessions/<sessionId>.json.
+ * POST /api/sessions/share — publishes { sessionId, messages } and returns its share URL;
+ *   re-posting an existing session updates the transcript and preserves `sharedAt`
+ * GET /api/sessions/share?id=&presence=&viewerId= — returns the shared transcript and live
+ *   viewer count; with presence=true it also records the viewer's heartbeat
+ *
+ * Presence entries expire after 30s, so viewerCount reflects only recently active viewers.
+ * Session ids are stripped to [A-Za-z0-9_-] before use as a filename.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

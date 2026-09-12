@@ -1,3 +1,12 @@
+/**
+ * Side-by-side model comparison for the Compare panel.
+ * POST /api/chat/compare — accepts { messages, modelIds, workspacePath } and runs the same
+ * prompt against 2-3 models in parallel, returning one result per model with usage and
+ * duration. Tools are not enabled for comparison runs, and each model gets a 30s timeout;
+ * a model that fails or times out yields a result with an `error` field rather than
+ * failing the whole request.
+ */
+
 import { generateText, type UIMessage, convertToModelMessages } from "ai";
 import { resolveModel, PROVIDER_REGISTRY } from "@/lib/models/providers";
 import { ensureApiKeysLoaded, getApiKey } from "@/lib/chat/api-keys-store";

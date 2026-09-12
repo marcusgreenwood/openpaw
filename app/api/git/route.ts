@@ -1,3 +1,11 @@
+/**
+ * Git status for the workspace, rendered by components/layout/GitStatus.tsx.
+ * GET /api/git?workspace= — returns { isRepo: false } for non-repositories, otherwise the
+ * current branch, a clean/dirty flag, and the staged, modified and untracked file lists
+ * parsed from `git status --porcelain`. Each git invocation has a 5s timeout and failures
+ * degrade to empty output rather than throwing.
+ */
+
 import { NextResponse } from "next/server";
 import { execSync } from "node:child_process";
 

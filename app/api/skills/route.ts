@@ -1,3 +1,9 @@
+/**
+ * Skill listing and installation.
+ * GET /api/skills?workspace= — lists the built-in and user skills visible to that workspace
+ * POST /api/skills — installs { skillName } from the skills ecosystem
+ */
+
 import { NextResponse } from "next/server";
 import { getSkills, installSkill } from "@/lib/skills/manager";
 

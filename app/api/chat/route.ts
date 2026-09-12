@@ -1,3 +1,10 @@
+/**
+ * Primary streaming chat endpoint used by the browser UI.
+ * POST /api/chat — accepts { messages, modelId, workspacePath, sessionId, maxToolSteps }
+ * and returns an AI SDK UI message stream. All model, skill, tool and memory wiring
+ * lives in lib/chat/handler.ts; this route only parses the body and streams the result.
+ */
+
 import { type UIMessage } from "ai";
 import { handleChatStreaming } from "@/lib/chat/handler";
 

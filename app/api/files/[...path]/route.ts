@@ -1,3 +1,10 @@
+/**
+ * Static file server for files the agent saves for the user.
+ * GET /api/files/<path...>?workspace= — serves a file from <workspace>/public with a
+ * Content-Type inferred from its extension and a 1-hour cache header.
+ * Resolved paths that escape <workspace>/public are rejected with 403.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

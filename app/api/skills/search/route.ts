@@ -1,3 +1,10 @@
+/**
+ * Skill discovery for the marketplace UI.
+ * GET /api/skills/search?q= — searches the ecosystem via the `skills find` CLI and falls
+ * back to the curated FEATURED_SKILLS list when the CLI is unavailable or returns nothing.
+ * An empty query returns the featured list unfiltered. Results are cached per query for 60s.
+ */
+
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
 

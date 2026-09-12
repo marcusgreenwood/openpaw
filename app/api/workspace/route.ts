@@ -1,3 +1,13 @@
+/**
+ * Directory listing for choosing a workspace.
+ * GET /api/workspace?path= — lists the non-hidden entries of an absolute directory,
+ * directories first then alphabetical. Relative paths return 400; a missing, unreadable
+ * or non-directory path returns 404.
+ *
+ * Note: this route is not currently called from the UI, which validates the workspace
+ * path through Settings instead.
+ */
+
 import { NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

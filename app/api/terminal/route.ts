@@ -1,3 +1,13 @@
+/**
+ * Streaming bash execution backing lib/hooks/useLiveTerminal.ts.
+ * POST /api/terminal — accepts { command, workspacePath } and streams SSE events:
+ * { type: "stdout" | "stderr", text } during the run, then { type: "exit", code, duration }.
+ *
+ * Commands matching BLOCKED_PATTERNS from lib/tools/bash.ts are rejected with 403. The
+ * process runs with the workspace virtualenv on PATH, is killed after a 60s timeout
+ * (reported as exit code 124), and receives SIGINT then SIGKILL if the client disconnects.
+ */
+
 import { spawn } from "node:child_process";
 import * as path from "node:path";
 import { DEFAULT_WORKSPACE } from "@/lib/chat/config";
