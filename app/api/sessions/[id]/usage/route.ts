@@ -1,3 +1,9 @@
+/**
+ * Per-session token usage and estimated cost.
+ * GET /api/sessions/<id>/usage — returns the summary accumulated by
+ * lib/usage/session-usage-store.ts as chat responses stream in.
+ */
+
 import { NextResponse } from "next/server";
 import { getSessionUsageSummary } from "@/lib/usage/session-usage-store";
 

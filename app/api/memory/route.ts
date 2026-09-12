@@ -1,3 +1,10 @@
+/**
+ * Read access to the Minns long-term memory layer.
+ * GET /api/memory?q=&limit= — with `q`, returns matching claims; without it, returns a page
+ * of memories plus project stats (stats are omitted if the Minns call fails).
+ * Returns { enabled: false } when no Minns credentials are configured.
+ */
+
 import { NextResponse } from "next/server";
 import {
   isMemoryEnabled,

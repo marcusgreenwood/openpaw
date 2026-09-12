@@ -1,14 +1,29 @@
+/**
+ * Store for conversation branching — forking a session at a chosen message to explore an
+ * alternative continuation without losing the original.
+ *
+ * Persisted to localStorage under `openpaw-branches`. This store holds only branch
+ * metadata; the messages themselves live with the session.
+ */
+
 "use client";
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+/** A fork point within a session. */
 export interface ConversationBranch {
+  /** Generated branch id. */
   id: string;
+  /** Session this branch belongs to. */
   sessionId: string;
+  /** Branch that was active when this one was created; `null` if forked from the trunk. */
   parentBranchId: string | null;
+  /** Id of the message the branch forks after. */
   forkFromMessageId: string;
+  /** Display name, defaulting to `Branch <n>`. */
   name: string;
+  /** Creation time, ms since epoch. */
   createdAt: number;
 }
 
@@ -31,6 +46,15 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * Branch state, keyed by session id.
+ *
+ * `createBranch(sessionId, forkFromMessageId, name?)` records a fork, makes it active and
+ * returns its id. `switchBranch(sessionId, branchId)` activates a branch, or the trunk
+ * when passed `null`. `deleteBranch(sessionId, branchId)` removes a branch, falling back
+ * to the trunk if it was active — note that child branches are not cascaded and keep a
+ * dangling `parentBranchId`. `getBranches` and `getActiveBranch` are read helpers.
+ */
 export const useBranchStore = create<BranchState>()(
   persist(
     (set, get) => ({

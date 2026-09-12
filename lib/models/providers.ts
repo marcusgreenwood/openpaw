@@ -1,9 +1,25 @@
+/**
+ * The model catalog and provider resolution.
+ *
+ * Every model the app can talk to is declared in {@link PROVIDER_REGISTRY}; the Settings UI,
+ * model switcher and compare panel all read from it. {@link resolveModel} turns a
+ * `"<provider>/<model>"` id into a ready-to-use AI SDK model instance.
+ */
+
 import type { ModelConfig } from "@/types";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMoonshotAI } from "@ai-sdk/moonshotai";
 
+/**
+ * Every selectable model, keyed by provider.
+ *
+ * The keys double as the set of valid provider names: /api/providers iterates them to
+ * report which API keys are configured, and only models whose provider has a key appear
+ * in the UI. Adding a provider means adding a key here and a matching case in
+ * {@link resolveModel}.
+ */
 export const PROVIDER_REGISTRY: Record<string, ModelConfig[]> = {
   anthropic: [
     {
@@ -105,11 +121,27 @@ export const PROVIDER_REGISTRY: Record<string, ModelConfig[]> = {
   ],
 };
 
+/** Every model from every provider, flattened — the list the model picker filters. */
 export const ALL_MODELS = Object.values(PROVIDER_REGISTRY).flat();
+
+/** Model used when the caller does not specify one (new sessions, prompt crons). */
 export const DEFAULT_MODEL_ID = "anthropic/claude-sonnet-4-6";
 
+/** API keys keyed by provider name, matching the keys of {@link PROVIDER_REGISTRY}. */
 export type ApiKeys = Record<string, string>;
 
+/**
+ * Builds an AI SDK model instance from a `"<provider>/<model>"` id.
+ *
+ * When no key is supplied for the provider, the underlying SDK falls back to that
+ * provider's own environment variable (e.g. `ANTHROPIC_API_KEY`).
+ *
+ * @param modelId - Id in `"<provider>/<model>"` form, e.g. `"anthropic/claude-sonnet-4-6"`.
+ *   Everything after the first slash is the model name, so names may contain slashes.
+ * @param apiKeys - Optional per-provider keys, typically assembled from the key store.
+ * @returns A model instance ready to pass to `streamText` / `generateText`.
+ * @throws Error if the provider segment is not one this app supports.
+ */
 export function resolveModel(
   modelId: string,
   apiKeys?: ApiKeys

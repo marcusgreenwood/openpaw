@@ -10,15 +10,24 @@ import type { UIMessage } from "ai";
 
 const CONFIG_PATH = path.join(process.cwd(), ".claw", "cron-sessions.json");
 
+/** A transcript produced by one run of a prompt cron. */
 export interface CronSessionData {
+  /** Session metadata, mirroring a normal chat session so the UI can render it as one. */
   session: Session;
+  /** The transcript — a user message holding the prompt and the assistant's reply. */
   messages: UIMessage[];
 }
 
+/** On-disk shape of `.claw/cron-sessions.json`. */
 export interface StoredCronSessions {
   sessions: CronSessionData[];
 }
 
+/**
+ * Reads every stored cron session, newest first.
+ *
+ * @returns The stored sessions, or an empty array if the file is missing or unparseable.
+ */
 export async function loadCronSessions(): Promise<CronSessionData[]> {
   try {
     const raw = await fs.readFile(CONFIG_PATH, "utf-8");
@@ -29,6 +38,14 @@ export async function loadCronSessions(): Promise<CronSessionData[]> {
   }
 }
 
+/**
+ * Prepends one cron session to the store, creating `.claw/` if needed.
+ *
+ * Read-modify-write against a single JSON file, so concurrent cron runs finishing at the
+ * same instant can lose one of their sessions.
+ *
+ * @param data - The session and its transcript.
+ */
 export async function saveCronSession(data: CronSessionData): Promise<void> {
   const existing = await loadCronSessions();
   const updated = [data, ...existing];
@@ -40,6 +57,12 @@ export async function saveCronSession(data: CronSessionData): Promise<void> {
   );
 }
 
+/**
+ * Removes a stored cron session by its session id.
+ *
+ * @param sessionId - The `session.id` to remove.
+ * @returns `true` if a session was removed, `false` if no session matched.
+ */
 export async function deleteCronSession(sessionId: string): Promise<boolean> {
   const existing = await loadCronSessions();
   const updated = existing.filter((c) => c.session.id !== sessionId);

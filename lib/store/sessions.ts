@@ -7,16 +7,30 @@ import { DEFAULT_MODEL_ID } from "@/lib/models/providers";
 import type { CronSessionData } from "@/lib/crons/cron-sessions";
 import { setPendingMessage } from "@/lib/store/pending-message";
 
+/**
+ * A preset for starting a session with a particular purpose.
+ *
+ * Built-in templates live in {@link BUILT_IN_TEMPLATES}; user-defined ones are persisted
+ * with the store.
+ */
 export interface SessionTemplate {
+  /** Template id. Built-ins are prefixed `builtin-`. */
   id: string;
+  /** Display name, also used as the created session's title. */
   name: string;
+  /** Short summary shown in the template picker. */
   description: string;
+  /** Emoji shown next to the name. */
   icon: string;
+  /** Extra system prompt text. Currently stored but not yet applied when creating a session. */
   systemPromptAddition?: string;
+  /** First message to send automatically once the session opens. */
   openingMessage?: string;
+  /** Model to use; falls back to the store's current `modelId`. */
   modelId?: string;
 }
 
+/** Templates shipped with the app. Always offered alongside any user-defined ones. */
 export const BUILT_IN_TEMPLATES: SessionTemplate[] = [
   {
     id: "builtin-code-review",
@@ -92,10 +106,41 @@ interface SessionsState {
   setActiveProject: (id: string | null) => void;
 }
 
+/** Generates a short id from the current time plus random suffix. */
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * The app's primary client store: chat sessions, the active selection, and the global
+ * chat settings the header and sidebar read from.
+ *
+ * Persisted to localStorage under `openpaw-sessions`. Two pieces of state are
+ * deliberately excluded from persistence and refetched each visit: `cronSessions`, which
+ * is server-owned and loaded from GET /api/cron-sessions, and `sidebarOpen`.
+ *
+ * Session actions:
+ * - `createSession()` — opens a new session with the current model and workspace, makes it
+ *   active, and returns its id
+ * - `setActiveSession`, `updateSessionTitle`, `deleteSession` — manage the session list.
+ *   Deleting the active session selects the next available session, preferring a regular
+ *   session over a cron session, and falls back to `null` when none remain
+ * - `setCronSessions(data)` — replaces the mirror of server-side cron transcripts
+ *
+ * Settings actions: `setModelId`, `setWorkspacePath`, `setMaxToolSteps`, `setSidebarOpen`
+ * and `setToolApprovalMode`, which gates whether tool calls require confirmation.
+ *
+ * Template actions: `addTemplate` and `deleteTemplate` manage user templates, while
+ * `createSessionFromTemplate(templateId)` searches built-ins and user templates, creates a
+ * session, and — if the template has an `openingMessage` — queues it as a pending message
+ * and dispatches `openpaw-new-chat` so ChatInterface sends it. Returns `null` for an
+ * unknown template id.
+ *
+ * Project actions: `addProject`, `updateProject` and `deleteProject` manage saved project
+ * profiles; `setActiveProject(id)` also switches the workspace to that project's path and,
+ * when the project declares one, its preferred model. Passing `null` clears the selection
+ * without touching the workspace, and an unknown id is ignored.
+ */
 export const useSessionsStore = create<SessionsState>()(
   persist(
     (set, get) => ({

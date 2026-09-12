@@ -1,3 +1,13 @@
+/**
+ * Read, edit and remove a single skill by name.
+ * GET /api/skills/<name>?workspace= — returns the parsed skill plus its raw markdown source
+ * PUT /api/skills/<name>?workspace= — overwrites the skill file with { content }
+ * DELETE /api/skills/<name> — removes the skill's containing directory
+ *
+ * Built-in skills are read-only: PUT and DELETE reject them with 403. Successful writes
+ * invalidate the skills cache so the next chat picks the change up.
+ */
+
 import { NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

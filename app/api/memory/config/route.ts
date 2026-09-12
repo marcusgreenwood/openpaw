@@ -1,3 +1,12 @@
+/**
+ * Minns memory credentials, stored in .claw/minns-config.json.
+ * GET /api/memory/config — reports whether memory is enabled, the credential source
+ *   ("env" | "stored" | "none"), the masked key, and the project id
+ * POST /api/memory/config — saves { apiKey, projectId }; apiKey is required
+ * DELETE /api/memory/config — deletes the stored config file
+ * MINNS_API_KEY / MINNS_PROJECT_ID take precedence over stored values.
+ */
+
 import { NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

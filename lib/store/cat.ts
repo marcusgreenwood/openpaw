@@ -1,7 +1,15 @@
+/**
+ * Store for the cat avatar's mood and speech bubble.
+ *
+ * Not persisted — the cat resets to idle on reload. lib/hooks/useCatReactions.ts drives
+ * this from chat status changes.
+ */
+
 "use client";
 
 import { create } from "zustand";
 
+/** The cat's current animation state. */
 export type CatMood =
   | "idle"
   | "thinking"
@@ -20,6 +28,7 @@ interface CatState {
   setVisible: (visible: boolean) => void;
 }
 
+/** Flavor text picked at random when entering `idle` without an explicit message. */
 const IDLE_MESSAGES = [
   "Purring softly...",
   "Watching you type...",
@@ -29,6 +38,13 @@ const IDLE_MESSAGES = [
   "...",
 ];
 
+/**
+ * Cat avatar state.
+ *
+ * `setMood(mood, message?)` sets the mood and bubble text. With no `message`, entering
+ * `idle` picks a random idle line and every other mood clears the bubble.
+ * `setVisible(visible)` shows or hides the avatar entirely.
+ */
 export const useCatStore = create<CatState>()((set) => ({
   mood: "idle",
   message: "",

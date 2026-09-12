@@ -1,3 +1,14 @@
+/**
+ * Notification inbox polled by components/layout/NotificationBell.tsx and written by the
+ * cron runner after each run.
+ * GET /api/notifications?since= — returns up to 50 notifications newer than `since` (ms epoch)
+ * POST /api/notifications — appends a notification, newest first, capped at 100
+ * DELETE /api/notifications — clears the inbox
+ *
+ * Note: storage is a module-level array, so it is per-process and does not survive a
+ * restart or span serverless instances.
+ */
+
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";

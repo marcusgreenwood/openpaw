@@ -1,3 +1,13 @@
+/**
+ * Client store for workflow definitions and the currently executing run.
+ *
+ * Persisted to localStorage under `openpaw-workflows`, but only `workflows` is saved —
+ * `activeRun` is intentionally dropped, so a run does not appear to resume after a reload.
+ *
+ * Note this is a separate store from the server-side definitions in
+ * lib/workflows/workflow-store.ts (`.claw/workflows.json`); the two are not synchronized.
+ */
+
 "use client";
 
 import { create } from "zustand";
@@ -8,10 +18,16 @@ import type {
   WorkflowRun,
 } from "@/lib/workflows/types";
 
+/** Generates a short id from the current time plus random suffix. */
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * Example workflows shipped with the app.
+ *
+ * Their `createdAt` / `updatedAt` are `0` to mark them as built-in rather than authored.
+ */
 export const BUILT_IN_WORKFLOWS: Workflow[] = [
   {
     id: "builtin-test-fix",
@@ -128,6 +144,19 @@ interface WorkflowsState {
   cancelRun: () => void;
 }
 
+/**
+ * Workflow state.
+ *
+ * - `addWorkflow(workflow)` — saves a definition with a generated `wf_` id and timestamps,
+ *   returning the id
+ * - `updateWorkflow(id, updates)` — merges changes and bumps `updatedAt`
+ * - `deleteWorkflow(id)` — removes a definition
+ * - `startRun(workflowId, steps)` — replaces `activeRun` with a fresh run whose step
+ *   results are all seeded `pending`, and returns the `run_`-prefixed run id
+ * - `updateRun(updates)` — merges progress into the active run; a no-op if none is active
+ * - `cancelRun()` — marks the active run `cancelled` and stamps `completedAt`. This only
+ *   updates local state; it does not abort the request to /api/workflows/run
+ */
 export const useWorkflowsStore = create<WorkflowsState>()(
   persist(
     (set) => ({

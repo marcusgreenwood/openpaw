@@ -1,3 +1,12 @@
+/**
+ * Workspace context search over lib/context/search.ts.
+ * GET /api/context?q=&workspace= — ranks workspace files by relevance to `q` and returns
+ * each match's relative path, excerpt lines and score. Missing `q` returns 400.
+ *
+ * Note: the chat handler calls searchWorkspaceContext() directly to auto-inject context,
+ * so this route is not currently consumed by the UI — it exists for external callers.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import * as path from "node:path";
 import { searchWorkspaceContext } from "@/lib/context/search";
