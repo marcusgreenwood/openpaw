@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gitignored, agent-generated output. Flat config does not read .gitignore,
+    // so these have to be listed explicitly. These patterns are anchored at the
+    // config root, so real source such as app/api/workspace/ is still linted.
+    "workspace/**",
+    ".claw/**",
+    ".openpaw/**",
+    "**/*.tsbuildinfo",
   ]),
 ]);
 
