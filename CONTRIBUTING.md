@@ -51,6 +51,40 @@ Automatically retries failed messages up to 3 times with
 exponential backoff. Users see a loading indicator during retry.
 ```
 
+### Automatic Normalization
+
+Before commitlint validates, the commit-msg hook runs a zero-dependency
+normalizer (`scripts/normalize-commit-msg.mjs`) that auto-fixes deviations it
+can repair unambiguously:
+
+- type casing and common aliases (`Feat:` -> `feat:`, `bugfix:` -> `fix:`)
+- spacing around the separator (`feat :add x` -> `feat: add x`)
+- a capitalized subject (`feat: Add x` -> `feat: add x`)
+- a single trailing period (`feat: add x.` -> `feat: add x`)
+- common past-tense verbs (`feat: added x` -> `feat: add x`)
+- the missing blank line between subject and body
+
+It deliberately will **not**:
+
+- truncate a subject over 100 characters
+- invent or guess a type when your message has none
+- reword, reflow, or re-case body prose
+- touch git trailers (`Co-Authored-By:`, `Signed-off-by:`, `BREAKING CHANGE:`)
+  or git-generated `Merge`/`Revert` messages
+
+Anything it cannot safely fix is left exactly as you wrote it, so commitlint
+still rejects it with the usual error. Acronyms (`API`), identifiers
+(`Next.js`, `lib/foo`, `MAX_RETRIES`) and quoted tokens keep their casing.
+
+To preview without committing, pipe a message through it:
+
+```
+echo "Feat: Added the thing." | npm run normalize:commit -- --stdin
+```
+
+`--check <file>` exits non-zero if a message would be rewritten, for CI or
+dry-run use. The normalizer's behavior is pinned by `npm run test:commit-msg`.
+
 ### Validation
 
 The commit-msg hook runs `commitlint` automatically on every commit.
