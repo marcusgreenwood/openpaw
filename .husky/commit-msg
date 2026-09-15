@@ -1,2 +1,9 @@
 #!/usr/bin/env sh
-npx --no -- commitlint --edit $1
+# Auto-fix safe formatting deviations first. commitlint below is the
+# authoritative gate: if the normalizer fails, say so and still validate.
+if [ -f scripts/normalize-commit-msg.mjs ]; then
+  node scripts/normalize-commit-msg.mjs "$1" ||
+    echo "commit-msg: normalizer failed, continuing to commitlint" >&2
+fi
+
+npx --no -- commitlint --edit "$1"
