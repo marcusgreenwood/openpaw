@@ -1,6 +1,6 @@
 "use client";
 
-import type { UIMessage } from "ai";
+import { getToolName, isToolUIPart, type UIMessage } from "ai";
 import { cn } from "@/lib/utils";
 import { AssistantContent } from "@/components/chat/AssistantContent";
 import { TerminalOutput } from "@/components/generative-ui/TerminalOutput";
@@ -70,19 +70,52 @@ function toolSummary(toolName: string, args: Record<string, unknown>, result: Re
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderToolPart(part: any, key: string, workspacePath: string, onChoiceSelect?: (option: string) => void) {
-  const { type, state, input, output } = part;
+/**
+ * Coerce an `unknown` tool payload into a readable record.
+ *
+ * `ToolUIPart` types `input`/`output` as `unknown` because the concrete shape
+ * depends on each tool's schema and is only known at runtime. Tool payloads are
+ * JSON objects in practice, so narrow to a record and fall back to an empty
+ * object for anything else (null, arrays, primitives, or a missing value).
+ */
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
 
-  const toolName = typeof type === "string" && type.startsWith("tool-")
-    ? type.slice(5)
-    : null;
+/** Read a string field off a tool payload, or `undefined` when it is absent. */
+function asOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
 
-  if (!toolName) return null;
+/** Narrow an unknown `listDirectory` payload into the entries FileTree renders. */
+function asFileEntries(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => {
+    const record = asRecord(entry);
+    return {
+      name: String(record.name ?? ""),
+      type: record.type === "directory" ? ("directory" as const) : ("file" as const),
+      path: String(record.path ?? ""),
+    };
+  });
+}
+
+function renderToolPart(
+  part: UIMessage["parts"][number],
+  key: string,
+  workspacePath: string,
+  onChoiceSelect?: (option: string) => void
+) {
+  if (!isToolUIPart(part)) return null;
+
+  const toolName = getToolName(part);
+  const input = asRecord(part.input);
 
   // Still executing — show LiveTerminal for bash, ProcessStatus for others
-  if (state === "input-streaming" || state === "input-available") {
-    if (toolName === "executeBash" && input?.command) {
+  if (part.state === "input-streaming" || part.state === "input-available") {
+    if (toolName === "executeBash" && input.command) {
       return (
         <LiveTerminal
           key={key}
@@ -103,7 +136,7 @@ function renderToolPart(part: any, key: string, workspacePath: string, onChoiceS
   }
 
   // Error
-  if (state === "output-error") {
+  if (part.state === "output-error") {
     return (
       <ProcessStatus
         key={key}
@@ -115,9 +148,9 @@ function renderToolPart(part: any, key: string, workspacePath: string, onChoiceS
   }
 
   // Completed — render
-  if (state === "output-available") {
-    const result = output ?? {};
-    const args = input ?? {};
+  if (part.state === "output-available") {
+    const result = asRecord(part.output);
+    const args = input;
 
     // askChoice: render inline MultipleChoice (no collapsible wrapper)
     if (toolName === "askChoice") {
@@ -140,49 +173,49 @@ function renderToolPart(part: any, key: string, workspacePath: string, onChoiceS
     if (toolName === "executeBash") {
       detail = (
         <TerminalOutput
-          stdout={result.stdout ?? ""}
-          stderr={result.stderr ?? ""}
-          exitCode={result.exitCode ?? 0}
-          durationMs={result.durationMs}
-          command={args.command}
+          stdout={String(result.stdout ?? "")}
+          stderr={String(result.stderr ?? "")}
+          exitCode={Number(result.exitCode ?? 0)}
+          durationMs={typeof result.durationMs === "number" ? result.durationMs : undefined}
+          command={asOptionalString(args.command)}
         />
       );
     } else if (toolName === "readFile") {
       detail = (
         <CodeBlock
-          code={result.content ?? ""}
-          filename={result.path}
+          code={String(result.content ?? "")}
+          filename={asOptionalString(result.path)}
         />
       );
     } else if (toolName === "writeFile") {
       detail = (
         <FileDiff
-          path={result.path ?? args.path ?? "unknown"}
-          before={result.previousContent ?? null}
-          after={args.content ?? ""}
+          path={String(result.path ?? args.path ?? "unknown")}
+          before={asOptionalString(result.previousContent) ?? null}
+          after={String(args.content ?? "")}
         />
       );
     } else if (toolName === "listDirectory") {
       detail = (
         <FileTree
-          entries={result.entries ?? []}
-          basePath={result.path}
+          entries={asFileEntries(result.entries)}
+          basePath={asOptionalString(result.path)}
         />
       );
     } else if (toolName === "createDirectory") {
       detail = (
         <div className="flex items-center gap-2 text-sm text-terminal-green py-2">
           <span className="font-mono text-xs">+</span>
-          <span>Created directory: {result.path}</span>
+          <span>Created directory: {String(result.path ?? "")}</span>
         </div>
       );
     } else if (toolName === "executeCode") {
       detail = (
         <TerminalOutput
-          stdout={result.stdout ?? ""}
-          stderr={result.stderr ?? ""}
-          exitCode={result.exitCode ?? 0}
-          language={result.language ?? args.language}
+          stdout={String(result.stdout ?? "")}
+          stderr={String(result.stderr ?? "")}
+          exitCode={Number(result.exitCode ?? 0)}
+          language={asOptionalString(result.language) ?? asOptionalString(args.language)}
         />
       );
     } else {
