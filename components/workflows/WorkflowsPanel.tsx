@@ -52,7 +52,7 @@ export function WorkflowsPanel() {
     deleteWorkflow(id);
   };
 
-  const processSSEEvent = (event: string, data: Record<string, unknown>) => {
+  const processSSEEvent = useCallback((event: string, data: Record<string, unknown>) => {
     const currentRun = useWorkflowsStore.getState().activeRun;
     if (!currentRun) return;
 
@@ -80,7 +80,7 @@ export function WorkflowsPanel() {
         completedAt: Date.now(),
       });
     }
-  };
+  }, [updateRun]);
 
   const handleRunWorkflow = useCallback(
     async (workflow: Workflow) => {
@@ -145,8 +145,7 @@ export function WorkflowsPanel() {
         }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [startRun, updateRun, workspacePath]
+    [startRun, updateRun, workspacePath, processSSEEvent]
   );
 
   const handleCancelRun = () => {
