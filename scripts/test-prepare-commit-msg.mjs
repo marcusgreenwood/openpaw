@@ -29,15 +29,46 @@ const GIT_COMMENTS = [
   '',
 ].join('\n');
 
+/** Git's scissors line, verbatim, as emitted under `commit -v`. */
+const SCISSORS = '# ------------------------ >8 ------------------------';
+
+/**
+ * The buffer git hands the hook under `git commit -v` (or `commit.verbose`):
+ * the usual comments, then the scissors line, then the raw staged diff. The
+ * diff lines are not comments, so they must not read as author content.
+ */
+const VERBOSE_COMMENTS = [
+  '',
+  '# Please enter the commit message for your changes. Lines starting',
+  "# with '#' will be ignored, and an empty message aborts the commit.",
+  '#',
+  '# On branch main',
+  '# Changes to be committed:',
+  '#\tmodified:   file.txt',
+  '#',
+  SCISSORS,
+  '# Do not modify or remove the line above.',
+  '# Everything below it will be ignored.',
+  'diff --git a/file.txt b/file.txt',
+  'index ce01362..2ee250a 100644',
+  '--- a/file.txt',
+  '+++ b/file.txt',
+  '@@ -1 +1,2 @@',
+  ' hello',
+  '+change',
+  '',
+].join('\n');
+
 /**
  * Runs the hook against a temp message file and returns the result.
  *
  * @param {string|null} contents Initial message-file contents, or null to omit
  *   the file argument entirely.
  * @param {string} [source] The commit source git would pass as `$2`.
+ * @param {string} [cwd] Directory to run the hook in, for git-config cases.
  * @returns {{status: number|null, output: string}} Exit code and final file.
  */
-function runHook(contents, source = '') {
+function runHook(contents, source = '', cwd = REPO_ROOT) {
   const dir = mkdtempSync(join(tmpdir(), 'prepare-commit-msg-'));
   try {
     const args = [HOOK];
@@ -49,7 +80,7 @@ function runHook(contents, source = '') {
     }
 
     const result = spawnSync(process.execPath, args, {
-      cwd: REPO_ROOT,
+      cwd,
       encoding: 'utf8',
     });
 
@@ -130,4 +161,69 @@ test('every guidance line is comment-prefixed, so git strips it all', () => {
   });
   assert.equal(stripped.status, 0);
   assert.equal(stripped.stdout, '');
+});
+
+test('appends guidance under `git commit -v`, below the scissors untouched', () => {
+  const { status, output } = runHook(VERBOSE_COMMENTS);
+  assert.equal(status, 0);
+  // The whole point: verbose authoring is the mainstream interactive path.
+  assert.match(output, /commit-template v1/);
+  assert.equal(output.split('\n')[0], '');
+
+  // Guidance sits above the scissors, so git strips it with the comments.
+  const lines = output.split('\n');
+  const scissors = lines.indexOf(SCISSORS);
+  assert.ok(scissors > 0, 'scissors line survived');
+  assert.ok(
+    lines.indexOf('# commit-template v1 -- see .husky/prepare-commit-msg') <
+      scissors,
+    'guidance is above the scissors line'
+  );
+
+  // The diff below the scissors is passed through byte for byte.
+  const diff = VERBOSE_COMMENTS.slice(VERBOSE_COMMENTS.indexOf(SCISSORS));
+  assert.ok(output.endsWith(diff), 'diff below the scissors is unchanged');
+});
+
+test('is a no-op under `-v` when a subject is already written', () => {
+  const existing = `feat: already written\n${VERBOSE_COMMENTS}`;
+  const { status, output } = runHook(existing);
+  assert.equal(status, 0);
+  assert.equal(output, existing);
+});
+
+test('every guidance line under `-v` is comment-prefixed', () => {
+  const { output } = runHook(VERBOSE_COMMENTS);
+  // Take only what git keeps: everything above the scissors line.
+  const kept = output.slice(0, output.indexOf(SCISSORS));
+  const stripped = spawnSync('git', ['stripspace', '--strip-comments'], {
+    input: kept,
+    encoding: 'utf8',
+  });
+  assert.equal(stripped.status, 0);
+  assert.equal(stripped.stdout, '');
+});
+
+test('honors core.commentString (git >= 2.45) for the guidance prefix', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'prepare-commit-msg-repo-'));
+  try {
+    for (const args of [
+      ['init', '-q', dir],
+      ['-C', dir, 'config', 'core.commentString', '//'],
+    ]) {
+      assert.equal(spawnSync('git', args).status, 0);
+    }
+
+    const buffer = ['', '// Please enter the commit message.', ''].join('\n');
+    const { status, output } = runHook(buffer, '', dir);
+    assert.equal(status, 0);
+    assert.match(output, /commit-template v1/);
+    // No stray `#` lines, which git would not strip under this config.
+    for (const line of output.split('\n')) {
+      if (line.trim() === '') continue;
+      assert.ok(line.startsWith('//'), `line not comment-prefixed: ${line}`);
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

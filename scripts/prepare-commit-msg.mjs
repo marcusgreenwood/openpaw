@@ -43,32 +43,63 @@ const NON_INTERACTIVE_SOURCES = new Set([
 ]);
 
 /**
- * Resolves the character git uses to mark comment lines, so guidance is still
- * stripped for authors who set `core.commentChar`.
+ * Reads a single git config value.
  *
- * @returns {string} The configured comment character, or `#`.
+ * @param {string} key Config key to read.
+ * @returns {string} The trimmed value, or an empty string if unset/unreadable.
  */
-function resolveCommentChar() {
+function gitConfig(key) {
   try {
-    const value = execFileSync('git', ['config', '--get', 'core.commentChar'], {
+    return execFileSync('git', ['config', '--get', key], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
     }).trim();
-    // `auto` lets git pick a char per message; `#` is the safe assumption.
-    if (!value || value === 'auto') return '#';
-    return value;
   } catch {
-    return '#';
+    return '';
   }
 }
 
 /**
- * Reads .gitmessage and re-prefixes its comment lines with `commentChar`.
+ * Resolves the string git uses to mark comment lines, so guidance is still
+ * stripped for authors who changed it. `core.commentString` (git >= 2.45) is
+ * the modern spelling and takes precedence over the older `core.commentChar`;
+ * git rejects setting both, so checking in that order is unambiguous.
  *
- * @param {string} commentChar Comment character configured for this repo.
+ * @returns {string} The configured comment prefix, or `#`.
+ */
+function resolveCommentPrefix() {
+  const value = gitConfig('core.commentString') || gitConfig('core.commentChar');
+  // `auto` lets git pick a char per message; `#` is the safe assumption.
+  if (!value || value === 'auto') return '#';
+  return value;
+}
+
+/**
+ * Finds git's scissors line, below which everything is discarded.
+ *
+ * Under `git commit -v` (or `commit.verbose=true`) git appends the scissors
+ * line plus the full staged diff to the buffer *before* this hook runs. Those
+ * diff lines are not comments, so without this bound they would look like
+ * author-written content and suppress the template entirely.
+ *
+ * @param {string[]} lines Lines of the commit message file.
+ * @param {string} commentPrefix Comment prefix configured for this repo.
+ * @returns {number} Index of the scissors line, or `lines.length` if absent.
+ */
+function findScissors(lines, commentPrefix) {
+  const index = lines.findIndex(
+    (line) => line.startsWith(commentPrefix) && line.includes('>8')
+  );
+  return index === -1 ? lines.length : index;
+}
+
+/**
+ * Reads .gitmessage and re-prefixes its comment lines with `commentPrefix`.
+ *
+ * @param {string} commentPrefix Comment prefix configured for this repo.
  * @returns {string[]} Guidance lines, or an empty array if unreadable.
  */
-function readGuidanceLines(commentChar) {
+function readGuidanceLines(commentPrefix) {
   let raw;
   try {
     raw = readFileSync(TEMPLATE_PATH, 'utf8');
@@ -79,7 +110,7 @@ function readGuidanceLines(commentChar) {
   return raw
     .split('\n')
     .filter((line) => line.startsWith('#'))
-    .map((line) => commentChar + line.slice(1));
+    .map((line) => commentPrefix + line.slice(1));
 }
 
 /**
@@ -101,20 +132,24 @@ function main() {
     return;
   }
 
-  const commentChar = resolveCommentChar();
+  const commentPrefix = resolveCommentPrefix();
 
   // Already applied (e.g. a second hook run, or commit.template points here).
   if (original.includes(TEMPLATE_MARKER)) return;
 
   const lines = original.split('\n');
 
+  // Only the region above the scissors line can hold author content; under
+  // `-v` everything below it is git's own diff and is discarded on save.
+  const scissors = findScissors(lines, commentPrefix);
+
   // Anything the author (or another hook) already wrote is left alone.
-  const hasContent = lines.some(
-    (line) => line.trim() !== '' && !line.startsWith(commentChar)
-  );
+  const hasContent = lines
+    .slice(0, scissors)
+    .some((line) => line.trim() !== '' && !line.startsWith(commentPrefix));
   if (hasContent) return;
 
-  const guidance = readGuidanceLines(commentChar);
+  const guidance = readGuidanceLines(commentPrefix);
   if (guidance.length === 0) return;
 
   // Keep the first line blank for the subject, then guidance, then git's own
