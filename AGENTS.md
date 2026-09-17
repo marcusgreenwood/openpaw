@@ -23,6 +23,12 @@ See `package.json` scripts and `README.md` for full details:
 - Chat state is stored in browser `localStorage` (Zustand/persist). Server-side config (API keys, crons, Minns memory) is stored as JSON files in `.claw/` directory.
 - The lint command (`npm run lint`) exits with code 1 due to pre-existing `react-hooks/set-state-in-effect` errors — this is a known issue in the repo, not an environment problem.
 
+### Commit messages
+
+- `.gitmessage` plus the `.husky/prepare-commit-msg` hook show the Conventional Commits format in the editor when a human runs a bare `git commit`.
+- Agent-driven commits use `-m`/`-F`, where git reports the source as `message`, so the hook exits without touching the buffer. No agent workflow changes.
+- `commitlint` in `.husky/commit-msg` is still the only thing that accepts or rejects a message.
+
 ### LiveTerminal (streaming bash output)
 
 The `/api/terminal` endpoint streams bash command output via SSE. The `LiveTerminal` component renders real-time output during `executeBash` tool calls (shown while the tool is in `input-streaming`/`input-available` state). After the tool completes, the regular `TerminalOutput` takes over. The terminal API reuses `BLOCKED_PATTERNS` from `lib/tools/bash.ts` and has a 60s timeout.

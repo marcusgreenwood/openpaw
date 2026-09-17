@@ -51,6 +51,36 @@ Automatically retries failed messages up to 3 times with
 exponential backoff. Users see a loading indicator during retry.
 ```
 
+### Commit Template
+
+Running `git commit` without `-m` opens an editor pre-filled with a commented
+reminder of the grammar, the allowed types, and the subject rules from the
+table above. The template lives in `.gitmessage` and is inserted by the
+`.husky/prepare-commit-msg` hook. It works the same under `git commit -v` and
+with `commit.verbose=true`.
+
+The hook runs once husky has installed the repo's git hooks, via the `prepare`
+script. Note that husky is not currently listed in `devDependencies`, so a
+clean `npm install` does not yet install the hooks on its own. Either way, you
+can opt in directly without husky:
+
+```
+git config commit.template .gitmessage
+```
+
+Every template line is comment-prefixed (`#`, or whatever `core.commentChar` /
+`core.commentString` is set to), and the hook only inserts it where git is
+going to remove it -- above the scissors line in the normal comment-stripping
+modes, and below the scissors under `--cleanup=scissors`, where git truncates
+instead of stripping. Under `--cleanup=whitespace` and `--cleanup=verbatim`
+git keeps comment lines verbatim (it leaves its own status block in your
+message too), so the hook inserts nothing at all rather than add to the noise.
+
+The template is guidance only and changes nothing about what is accepted --
+`commitlint` in the `commit-msg` hook still decides pass or fail. It is skipped
+for `-m`/`-F`, `--amend`, merges, and squashes, and it never alters a message
+you have already written.
+
 ### Validation
 
 The commit-msg hook runs `commitlint` automatically on every commit.
