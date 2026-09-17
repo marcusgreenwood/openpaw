@@ -60,6 +60,41 @@ const VERBOSE_COMMENTS = [
 ].join('\n');
 
 /**
+ * The buffer git hands the hook under `--cleanup=scissors` (or
+ * `commit.cleanup=scissors`). Because that mode truncates at the scissors
+ * instead of stripping comments, git moves its own status block *below* the
+ * scissors and leaves the region above empty — so guidance inserted at the top
+ * would be committed verbatim.
+ */
+const SCISSORS_COMMENTS = [
+  '',
+  SCISSORS,
+  '# Do not modify or remove the line above.',
+  '# Everything below it will be ignored.',
+  '#',
+  '# On branch main',
+  '# Changes to be committed:',
+  '#\tmodified:   file.txt',
+  '',
+].join('\n');
+
+/**
+ * Initializes a throwaway git repo with the given config, for the cases whose
+ * behavior depends on `git config` rather than on the buffer.
+ *
+ * @param {string[][]} config Key/value config pairs to set.
+ * @returns {string} Path to the new repo.
+ */
+function makeRepo(config = []) {
+  const dir = mkdtempSync(join(tmpdir(), 'prepare-commit-msg-repo-'));
+  assert.equal(spawnSync('git', ['init', '-q', dir]).status, 0);
+  for (const [key, value] of config) {
+    assert.equal(spawnSync('git', ['-C', dir, 'config', key, value]).status, 0);
+  }
+  return dir;
+}
+
+/**
  * Runs the hook against a temp message file and returns the result.
  *
  * @param {string|null} contents Initial message-file contents, or null to omit
@@ -204,16 +239,60 @@ test('every guidance line under `-v` is comment-prefixed', () => {
   assert.equal(stripped.stdout, '');
 });
 
-test('honors core.commentString (git >= 2.45) for the guidance prefix', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'prepare-commit-msg-repo-'));
-  try {
-    for (const args of [
-      ['init', '-q', dir],
-      ['-C', dir, 'config', 'core.commentString', '//'],
-    ]) {
-      assert.equal(spawnSync('git', args).status, 0);
-    }
+test('under scissors cleanup, guidance goes below the scissors line', () => {
+  const { status, output } = runHook(SCISSORS_COMMENTS);
+  assert.equal(status, 0);
+  // The feature still works -- the author sees the guidance in the editor.
+  assert.match(output, /commit-template v1/);
 
+  const lines = output.split('\n');
+  const scissors = lines.indexOf(SCISSORS);
+  assert.ok(scissors >= 0, 'scissors line survived');
+  // Everything above the scissors is committed verbatim in this mode, so the
+  // guidance must sit below it, where git truncates unconditionally.
+  assert.ok(
+    lines.indexOf('# commit-template v1 -- see .husky/prepare-commit-msg') >
+      scissors,
+    'guidance is below the scissors line'
+  );
+
+  // What git keeps is only the region above the scissors: still just a blank
+  // subject line, byte for byte what it was before the hook ran.
+  const kept = output.slice(0, output.indexOf(SCISSORS));
+  assert.equal(kept, SCISSORS_COMMENTS.slice(0, SCISSORS_COMMENTS.indexOf(SCISSORS)));
+});
+
+for (const mode of ['verbatim', 'whitespace']) {
+  test(`is a no-op under commit.cleanup=${mode}, which strips nothing`, () => {
+    const dir = makeRepo([['commit.cleanup', mode]]);
+    try {
+      const { status, output } = runHook(GIT_COMMENTS, '', dir);
+      assert.equal(status, 0);
+      assert.equal(output, GIT_COMMENTS);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+}
+
+test('is a no-op when git says comment lines will be kept', () => {
+  // `--cleanup=whitespace` on the command line is invisible to `git config`,
+  // but git rewords its own hint from "will be ignored" to "will be kept".
+  const buffer = [
+    '',
+    '# Please enter the commit message for your changes. Lines starting',
+    "# with '#' will be kept; you may remove them yourself if you want to.",
+    '# An empty message aborts the commit.',
+    '',
+  ].join('\n');
+  const { status, output } = runHook(buffer);
+  assert.equal(status, 0);
+  assert.equal(output, buffer);
+});
+
+test('honors core.commentString (git >= 2.45) for the guidance prefix', () => {
+  const dir = makeRepo([['core.commentString', '//']]);
+  try {
     const buffer = ['', '// Please enter the commit message.', ''].join('\n');
     const { status, output } = runHook(buffer, '', dir);
     assert.equal(status, 0);

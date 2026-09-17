@@ -27,6 +27,6 @@
 #   - no trailing period
 #
 # Leave a blank line between the subject and the body.
-# Lines starting with '#' are stripped and never reach the commit.
+# This guidance block is discarded automatically and never reaches the commit.
 # See CONTRIBUTING.md for the full guide.
 # ----------------------------------------------------------------------

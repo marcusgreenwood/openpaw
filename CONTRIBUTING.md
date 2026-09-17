@@ -69,11 +69,17 @@ git config commit.template .gitmessage
 ```
 
 Every template line is comment-prefixed (`#`, or whatever `core.commentChar` /
-`core.commentString` is set to), so git strips it and none of it reaches the
-commit. The template is guidance only and changes nothing about what is
-accepted -- `commitlint` in the `commit-msg` hook still decides pass or fail.
-It is skipped for `-m`/`-F`, `--amend`, merges, and squashes, and it never
-alters a message you have already written.
+`core.commentString` is set to), and the hook only inserts it where git is
+going to remove it -- above the scissors line in the normal comment-stripping
+modes, and below the scissors under `--cleanup=scissors`, where git truncates
+instead of stripping. Under `--cleanup=whitespace` and `--cleanup=verbatim`
+git keeps comment lines verbatim (it leaves its own status block in your
+message too), so the hook inserts nothing at all rather than add to the noise.
+
+The template is guidance only and changes nothing about what is accepted --
+`commitlint` in the `commit-msg` hook still decides pass or fail. It is skipped
+for `-m`/`-F`, `--amend`, merges, and squashes, and it never alters a message
+you have already written.
 
 ### Validation
 

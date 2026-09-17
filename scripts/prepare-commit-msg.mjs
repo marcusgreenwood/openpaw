@@ -43,6 +43,14 @@ const NON_INTERACTIVE_SOURCES = new Set([
 ]);
 
 /**
+ * Cleanup modes in which git keeps comment lines verbatim, so there is nowhere
+ * in the buffer to put guidance that git is guaranteed to remove. Under these
+ * modes git leaves its own status block in the message too, so staying out is
+ * the only correct behavior.
+ */
+const NON_STRIPPING_CLEANUP = new Set(['verbatim', 'whitespace']);
+
+/**
  * Reads a single git config value.
  *
  * @param {string} key Config key to read.
@@ -94,6 +102,50 @@ function findScissors(lines, commentPrefix) {
 }
 
 /**
+ * Best-effort detection of `--cleanup=whitespace|verbatim` passed on the
+ * command line, which `git config` cannot see and which produces no structural
+ * difference in the buffer. git does say so in its own hint text, though:
+ * comment-stripping modes write "will be ignored", while these modes write
+ * "will be kept; you may remove them yourself".
+ *
+ * This is deliberately a defense-in-depth check, not the primary guard: the
+ * hint is localized, so a non-English git will not match. Failing to match only
+ * falls back to the normal path, so this can never make the hook less safe than
+ * omitting it — it just catches the common English-locale case.
+ *
+ * @param {string[]} lines Lines of the commit message file.
+ * @returns {boolean} True when git said it will keep comment lines.
+ */
+function gitSaysCommentsAreKept(lines) {
+  // Matched without the comment character, which varies with core.commentChar.
+  return lines.some((line) => line.includes('will be kept'));
+}
+
+/**
+ * Detects `--cleanup=scissors` semantics from the buffer alone.
+ *
+ * This cannot be read from config: `--cleanup=scissors` on the command line is
+ * invisible to the hook (it appears in neither `git config` nor the
+ * environment). The buffer is unambiguous though. In scissors-cleanup mode git
+ * does not strip comments above the scissors line -- it only truncates there --
+ * so it relocates its own status block *below* the scissors, leaving the region
+ * above empty. Under `-v` with a comment-stripping cleanup, that same status
+ * block stays above the scissors. So "a scissors line with no comments above
+ * it" means comments above the scissors would be committed verbatim.
+ *
+ * @param {string[]} lines Lines of the commit message file.
+ * @param {number} scissors Index of the scissors line, or `lines.length`.
+ * @param {string} commentPrefix Comment prefix configured for this repo.
+ * @returns {boolean} True when comments above the scissors would survive.
+ */
+function isScissorsCleanup(lines, scissors, commentPrefix) {
+  if (scissors === lines.length) return false;
+  return !lines
+    .slice(0, scissors)
+    .some((line) => line.startsWith(commentPrefix));
+}
+
+/**
  * Reads .gitmessage and re-prefixes its comment lines with `commentPrefix`.
  *
  * @param {string} commentPrefix Comment prefix configured for this repo.
@@ -137,7 +189,14 @@ function main() {
   // Already applied (e.g. a second hook run, or commit.template points here).
   if (original.includes(TEMPLATE_MARKER)) return;
 
+  // Nothing would be stripped, so guidance could only land in the commit.
+  if (NON_STRIPPING_CLEANUP.has(gitConfig('commit.cleanup'))) return;
+
   const lines = original.split('\n');
+
+  // Same situation, but requested on the command line where config cannot see
+  // it; git's own hint gives it away in an English locale.
+  if (gitSaysCommentsAreKept(lines)) return;
 
   // Only the region above the scissors line can hold author content; under
   // `-v` everything below it is git's own diff and is discarded on save.
@@ -152,13 +211,23 @@ function main() {
   const guidance = readGuidanceLines(commentPrefix);
   if (guidance.length === 0) return;
 
-  // Keep the first line blank for the subject, then guidance, then git's own
-  // comment block — the same layout `git config commit.template` produces.
-  const firstNonEmpty = lines.findIndex((line) => line.trim() !== '');
-  const rest = firstNonEmpty === -1 ? [] : lines.slice(firstNonEmpty);
+  let next;
+  if (isScissorsCleanup(lines, scissors, commentPrefix)) {
+    // Comments above the scissors would be committed verbatim here, so the
+    // guidance goes below it instead: still visible while authoring, and
+    // unconditionally truncated rather than merely comment-stripped.
+    const body = lines[lines.length - 1] === '' ? lines.slice(0, -1) : lines;
+    next = [...body, ...guidance, ''];
+  } else {
+    // Keep the first line blank for the subject, then guidance, then git's own
+    // comment block — the same layout `git config commit.template` produces.
+    const firstNonEmpty = lines.findIndex((line) => line.trim() !== '');
+    const rest = firstNonEmpty === -1 ? [] : lines.slice(firstNonEmpty);
+    next = ['', ...guidance, ...rest];
+  }
 
   try {
-    writeFileSync(msgFile, ['', ...guidance, ...rest].join('\n'));
+    writeFileSync(msgFile, next.join('\n'));
   } catch {
     // Fail open: a commit must never fail because guidance could not be added.
   }
