@@ -1,0 +1,32 @@
+
+# commit-template v1 -- see .husky/prepare-commit-msg
+# ----------------------------------------------------------------------
+# Conventional Commits, enforced by commitlint in the commit-msg hook.
+#
+#   <type>(<optional scope>): <subject>
+#
+#   <optional body: what changed and why>
+#
+#   <optional footer: BREAKING CHANGE: ..., Refs: ...>
+#
+# Allowed types:
+#   feat      a new feature
+#   fix       a bug fix
+#   chore     build process, tooling, or dependency updates
+#   docs      documentation changes only
+#   style     formatting, whitespace (no logic change)
+#   refactor  code restructuring without behavior change
+#   test      adding or updating tests
+#   ci        CI/CD configuration changes
+#   build     build system changes
+#   revert    revert a previous commit
+#
+# Subject rules:
+#   - 100 characters maximum
+#   - imperative mood ("add feature", not "added feature")
+#   - no trailing period
+#
+# Leave a blank line between the subject and the body.
+# Lines starting with '#' are stripped and never reach the commit.
+# See CONTRIBUTING.md for the full guide.
+# ----------------------------------------------------------------------

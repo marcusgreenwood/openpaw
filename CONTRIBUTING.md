@@ -51,6 +51,25 @@ Automatically retries failed messages up to 3 times with
 exponential backoff. Users see a loading indicator during retry.
 ```
 
+### Commit Template
+
+Running `git commit` without `-m` opens an editor pre-filled with a commented
+reminder of the grammar, the allowed types, and the subject rules from the
+table above. The template lives in `.gitmessage` and is inserted by the husky
+`prepare-commit-msg` hook, which is installed automatically by `npm install`.
+
+Without husky, opt in manually:
+
+```
+git config commit.template .gitmessage
+```
+
+Every template line starts with `#`, so git strips it and none of it reaches
+the commit. The template is guidance only and changes nothing about what is
+accepted -- `commitlint` in the `commit-msg` hook still decides pass or fail.
+It is skipped for `-m`/`-F`, `--amend`, merges, and squashes, and it never
+alters a message you have already written.
+
 ### Validation
 
 The commit-msg hook runs `commitlint` automatically on every commit.

@@ -1,0 +1,2 @@
+#!/usr/bin/env sh
+node scripts/prepare-commit-msg.mjs "$1" "$2" "$3"
