@@ -155,6 +155,8 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 | `npm run dev` | Start development server |
 | `npm run build` | Build for production |
 | `npm run start` | Run production server |
+| `npm run lint` | Run ESLint |
+| `npm run typecheck` | Type-check the project with `tsc --noEmit` |
 | `npm run test:usage` | Run usage tracking tests |
 
 ---

@@ -13,11 +13,11 @@ async function main() {
   console.log("Testing executeBash agent-browser screenshot path rewrite...\n");
 
   // Import the actual executeBash tool
-  const { DEFAULT_WORKSPACE } = await import("../lib/chat/config");
+  const { DEFAULT_WORKSPACE, BASH_TIMEOUT_MS } = await import("../lib/chat/config");
   const workspacePath = path.resolve(DEFAULT_WORKSPACE);
   const { allTools } = await import("../lib/tools");
-  const tools = allTools(workspacePath);
-  const executeBash = tools.executeBash as { execute: (args: { command: string }) => Promise<unknown> };
+  const { executeBash } = allTools(workspacePath);
+  if (!executeBash.execute) throw new Error("executeBash tool has no execute implementation");
 
   await fs.mkdir(WORKSPACE_PUBLIC, { recursive: true });
 
@@ -27,7 +27,10 @@ async function main() {
   console.log("Command:", command);
   console.log("Workspace:", workspacePath);
 
-  const result = (await executeBash.execute({ command })) as {
+  const result = (await executeBash.execute(
+    { command, timeout: BASH_TIMEOUT_MS, streaming: false },
+    { toolCallId: "test-screenshot", messages: [] }
+  )) as {
     stdout: string;
     stderr: string;
     exitCode: number;
