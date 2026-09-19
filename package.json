@@ -10,7 +10,8 @@
     "test:usage": "tsx scripts/test-usage.ts",
     "postinstall": "npx agent-browser install",
     "prepare": "husky",
-    "commitlint": "commitlint --from HEAD~1 --to HEAD"
+    "commitlint": "commitlint --from HEAD~1 --to HEAD",
+    "lint:pr-title": "if [ -z \"$PR_TITLE\" ]; then echo \"PR_TITLE is empty. Usage: PR_TITLE='feat: your subject' npm run lint:pr-title\" >&2; exit 1; fi; printf '%s\\n' \"$PR_TITLE\" | commitlint --config commitlint.config.js"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.46",
