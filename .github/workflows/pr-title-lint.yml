@@ -1,0 +1,81 @@
+# Lints the pull request title against the repository's commitlint config.
+#
+# Why this exists: this repo merges via GitHub, so the subject line that actually
+# lands on `main` is the merge/squash title, not any individual branch commit.
+# The `commit-msg` hook and the `commitlint` npm script only ever inspect branch
+# commits, so a non-conventional PR title still becomes a non-conventional
+# subject on `main` (see "Merge pull request #6 from ..." in the history).
+#
+# This workflow deliberately restates no rules of its own: it pipes the title
+# through `commitlint.config.js`, which stays the single source of truth.
+name: PR Title Lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+# A title is usually fixed by editing it, which fires `edited` again. Cancel the
+# stale run so only the check for the current title reports.
+concurrency:
+  group: pr-title-lint-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint-pr-title:
+    name: Validate conventional commit title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Both flags are currently required for a clean checkout to install:
+      #   --ignore-scripts     `prepare` runs husky, which is missing from the
+      #                        lockfile; drop this once PR "add husky to
+      #                        devDependencies so npm ci succeeds" lands. It also
+      #                        skips the postinstall Chromium download, which
+      #                        this job does not need.
+      #   --legacy-peer-deps   @tremor/react declares a peer conflict with react 19.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+      # The title is passed through the environment and never interpolated into
+      # the shell command: a PR title is attacker-controlled text, and
+      # `${{ ... }}` inside `run:` would splice it into the script verbatim.
+      - name: Validate pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          if npm run --silent lint:pr-title > "$RUNNER_TEMP/result.txt" 2>&1; then
+            printf '%s\n' "PR title OK: $PR_TITLE" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          cat "$RUNNER_TEMP/result.txt"
+
+          {
+            printf '## Pull request title is not a Conventional Commit\n\n'
+            printf 'This repository merges via GitHub, so **this title becomes the '
+            printf 'subject line on `main`**. Rename the PR to fix it.\n\n'
+            printf 'Current title:\n\n```\n%s\n```\n\n' "$PR_TITLE"
+            printf 'Required format:\n\n```\n<type>(<optional scope>): <subject>\n```\n\n'
+            printf 'Allowed types: `feat`, `fix`, `chore`, `docs`, `style`, '
+            printf '`refactor`, `test`, `ci`, `build`, `revert`. '
+            printf 'Subject must be at most 100 characters, imperative mood, no trailing period.\n\n'
+            printf 'Example: `fix: resolve token count overflow on long conversations`\n\n'
+            printf 'commitlint output:\n\n```\n'
+            cat "$RUNNER_TEMP/result.txt"
+            printf '```\n\n'
+            printf 'See CONTRIBUTING.md ("Pull Request Titles"). To check locally:\n\n'
+            printf '```sh\nPR_TITLE=%s npm run lint:pr-title\n```\n' "'feat: your title here'"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          printf '::error title=Invalid PR title::%s\n' \
+            "Rename this PR to '<type>: <subject>' — see the job summary and CONTRIBUTING.md"
+          exit 1
