@@ -1,3 +1,10 @@
+/**
+ * Per-session token usage and cost.
+ * GET /api/sessions/<id>/usage — returns aggregated totals for one chat session.
+ *
+ * Unknown session ids return zeroed totals rather than a 404.
+ */
+
 import { NextResponse } from "next/server";
 import { getSessionUsageSummary } from "@/lib/usage/session-usage-store";
 

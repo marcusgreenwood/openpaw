@@ -1,5 +1,9 @@
 "use client";
 
+/**
+ * @file Hook exposing which AI providers have an API key configured.
+ */
+
 import { useState, useEffect, useCallback } from "react";
 import type { ModelConfig } from "@/types";
 import { ALL_MODELS } from "@/lib/models/providers";
@@ -9,6 +13,15 @@ interface ProvidersResponse {
   configuredProviders: string[];
 }
 
+/**
+ * Fetches provider configuration status from `/api/providers`.
+ *
+ * Refetches on the `openpaw-providers-updated` window event, so saving keys in
+ * Settings immediately updates the model picker.
+ *
+ * @returns The configured provider keys, the models those providers offer, a
+ *          loading flag, and a manual `refetch`.
+ */
 export function useConfiguredProviders() {
   const [data, setData] = useState<ProvidersResponse | null>(null);
   const [loading, setLoading] = useState(true);

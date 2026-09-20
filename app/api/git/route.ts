@@ -1,3 +1,12 @@
+/**
+ * Git status for the workspace.
+ * GET /api/git?workspace= — reports branch and working-tree state.
+ *
+ * Shells out to `git branch --show-current` and `git status --porcelain` with a
+ * short timeout; any failure (including "not a repository") degrades to
+ * `{ isRepo: false }` rather than an error status.
+ */
+
 import { NextResponse } from "next/server";
 import { execSync } from "node:child_process";
 

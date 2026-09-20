@@ -1,3 +1,13 @@
+/**
+ * Side-by-side model comparison.
+ * POST /api/chat/compare — runs the same conversation against 2-3 models in parallel.
+ *
+ * Non-streaming: each model is generated with `generateText` (no tools) and raced
+ * against a 30 s timeout, so one slow or failing provider cannot block the others.
+ * Per-model failures are reported in that result's `error` field rather than
+ * failing the whole request.
+ */
+
 import { generateText, type UIMessage, convertToModelMessages } from "ai";
 import { resolveModel, PROVIDER_REGISTRY } from "@/lib/models/providers";
 import { ensureApiKeysLoaded, getApiKey } from "@/lib/chat/api-keys-store";

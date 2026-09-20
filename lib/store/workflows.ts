@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * @file Workflow store — saved workflows and the currently executing run.
+ *
+ * User-defined workflows are persisted to localStorage under
+ * `openpaw-workflows`; the active run is deliberately not persisted, since a run
+ * cannot be resumed across a reload. Built-in workflows are constants, not store
+ * state, so they are always available and cannot be edited away.
+ */
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
@@ -12,6 +21,7 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/** Example workflows shipped with the app; not stored and not editable. */
 export const BUILT_IN_WORKFLOWS: Workflow[] = [
   {
     id: "builtin-test-fix",
@@ -128,6 +138,13 @@ interface WorkflowsState {
   cancelRun: () => void;
 }
 
+/**
+ * Store for user-defined workflows and the run currently in progress.
+ *
+ * Only `workflows` is persisted (`openpaw-workflows`); `activeRun` is dropped on
+ * reload because a run cannot be resumed. `startRun` seeds one `pending` result
+ * per step, and `updateRun` merges the progress reported by the run stream.
+ */
 export const useWorkflowsStore = create<WorkflowsState>()(
   persist(
     (set) => ({

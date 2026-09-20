@@ -1,6 +1,16 @@
 "use client";
+
+/**
+ * @file Client-side notification store.
+ *
+ * Holds cron results and informational messages for the notification bell. Not
+ * persisted and capped at 50 entries; the server keeps its own independent list
+ * behind `/api/notifications`.
+ */
+
 import { create } from "zustand";
 
+/** A notification shown in the notification bell. */
 export interface Notification {
   id: string;
   type: "cron_success" | "cron_failure" | "info";
@@ -25,6 +35,12 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * Store for in-app notifications.
+ *
+ * `addNotification` assigns the id and timestamp, marks the entry unread, and
+ * prepends it, keeping only the 50 most recent.
+ */
 export const useNotificationsStore = create<NotificationsState>()((set, get) => ({
   notifications: [],
 

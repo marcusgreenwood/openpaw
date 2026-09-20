@@ -1,3 +1,12 @@
+/**
+ * @file Workspace context search — dependency-free keyword scoring over project files.
+ *
+ * Used by the `searchContext` tool, the `/api/context` endpoint, and the chat
+ * handler's automatic context injection. Walks the workspace (skipping build and
+ * dependency directories), scores files by how well their name, path, and
+ * contents match the query, and returns the best matches with surrounding lines.
+ */
+
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
@@ -71,6 +80,7 @@ const CODE_EXTENSIONS = new Set([
 
 const MAX_FILE_SIZE = 100 * 1024; // 100KB
 
+/** One scored file match returned by {@link searchWorkspaceContext}. */
 export interface SearchResult {
   path: string;
   relativePath: string;
@@ -115,6 +125,22 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length > 1);
 }
 
+/**
+ * Searches a workspace for files relevant to a free-text query.
+ *
+ * The query is tokenised on non-alphanumerics; tokens shorter than two
+ * characters are dropped. Each candidate file scores 10 per filename match, 5
+ * per path match, and 1 per matching line, and every matching line is returned
+ * with one line of context on either side. Files over 100 KB and the usual build
+ * and dependency directories are skipped.
+ *
+ * @param workspacePath - Directory to search.
+ * @param maxResults    - Maximum number of files to return.
+ * @param maxTotalLines - Budget for returned lines across all results; later
+ *                        results are truncated (possibly to nothing) once spent.
+ * @returns Matching files, highest score first. Empty when the query has no
+ *          usable tokens.
+ */
 export async function searchWorkspaceContext(
   query: string,
   workspacePath: string,

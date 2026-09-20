@@ -1,3 +1,11 @@
+/**
+ * Long-term memory browsing and search (Minns).
+ * GET /api/memory?q=&limit= — searches claims when `q` is set, else lists memories.
+ *
+ * Memory is optional: when Minns is not configured the route reports
+ * `enabled: false` instead of failing.
+ */
+
 import { NextResponse } from "next/server";
 import {
   isMemoryEnabled,

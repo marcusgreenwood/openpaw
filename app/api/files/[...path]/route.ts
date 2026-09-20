@@ -1,3 +1,11 @@
+/**
+ * Static file serving for agent-produced artefacts.
+ * GET /api/files/<...path>?workspace= — serves files from `<workspace>/public/`.
+ *
+ * Resolved paths are checked against the public directory to block traversal,
+ * and the Content-Type is derived from the file extension.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * @file Theme store.
+ *
+ * Persists the user's theme choice to localStorage under `openpaw-theme` and
+ * applies it to the document element. `app/layout.tsx` reads the same key in an
+ * inline script so the correct theme is applied before first paint.
+ */
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -25,6 +33,13 @@ function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", resolved === "dark");
 }
 
+/**
+ * Store for the selected theme.
+ *
+ * `setTheme` immediately applies the theme to the document element; `resolvedTheme`
+ * resolves `"system"` against the OS preference. The theme is re-applied on
+ * hydration so a persisted choice survives a reload.
+ */
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({

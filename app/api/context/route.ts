@@ -1,3 +1,11 @@
+/**
+ * Workspace context search.
+ * GET /api/context?q=&workspace= — keyword-searches the workspace for relevant files.
+ *
+ * Exposes the same `searchWorkspaceContext` scoring the chat handler uses to
+ * auto-inject context, so the UI can preview what the agent would see.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import * as path from "node:path";
 import { searchWorkspaceContext } from "@/lib/context/search";

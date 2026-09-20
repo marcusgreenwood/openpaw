@@ -1,7 +1,16 @@
 "use client";
 
+/**
+ * @file Hook managing file attachments for the chat input.
+ *
+ * Reads dropped or selected files in the browser — text files as UTF-8, images as
+ * base64 data URLs — enforces per-type size limits, and formats the collected
+ * attachments into a markdown block that can be appended to a chat message.
+ */
+
 import { useState, useCallback } from "react";
 
+/** A file staged for sending, already read into memory. */
 export interface FileAttachment {
   id: string;
   name: string;
@@ -66,11 +75,21 @@ function readFileAsDataURL(file: File): Promise<string> {
   });
 }
 
+/** A file that could not be staged, with a user-facing reason. */
 export interface FileAttachmentError {
   name: string;
   reason: string;
 }
 
+/**
+ * Manages the files staged on the chat input.
+ *
+ * `addFiles` reads a `FileList` in parallel, accepting images (up to 5 MB, read
+ * as base64 data URLs) and text files (up to 100 KB, read as UTF-8). Rejected
+ * files are surfaced through `errors` rather than thrown, so one bad file does
+ * not discard the rest. `formatForMessage` renders the staged files as a markdown
+ * block ready to append to the outgoing message.
+ */
 export function useFileAttachments() {
   const [files, setFiles] = useState<FileAttachment[]>([]);
   const [errors, setErrors] = useState<FileAttachmentError[]>([]);
