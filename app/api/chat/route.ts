@@ -1,3 +1,12 @@
+/**
+ * Main chat endpoint.
+ * POST /api/chat — streams an agentic model response as a UI message stream.
+ *
+ * Accepts `{ messages, modelId, workspacePath, sessionId, maxToolSteps }` and
+ * delegates to `handleChatStreaming`, which assembles the system prompt, skills,
+ * tools, and (when configured) memory/workspace context before streaming.
+ */
+
 import { type UIMessage } from "ai";
 import { handleChatStreaming } from "@/lib/chat/handler";
 

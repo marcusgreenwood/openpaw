@@ -1,3 +1,13 @@
+/**
+ * Session sharing and viewer presence.
+ * POST /api/sessions/share — publish a session snapshot, returns its share URL
+ * GET  /api/sessions/share?id=&presence=&viewerId= — read a shared session
+ *
+ * Snapshots are stored as JSON under .claw/shared-sessions/ and rendered by
+ * /shared/<id>. Presence entries expire after 30 s, so `viewerCount` reflects
+ * only recently active viewers.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

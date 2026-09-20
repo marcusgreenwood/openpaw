@@ -10,7 +10,17 @@ AI agent chat app with tools, skills, scheduled tasks, and multi-channel support
 - **Tools** — Bash, filesystem, code execution, browser automation (agent-browser)
 - **Skills** — Built-in and installable skills for coding, bash, agent-browser, scheduled tasks, and more
 - **Scheduled Tasks** — Cron jobs that run bash commands or AI prompts on a schedule
+- **Workflows** — Multi-step pipelines of commands, prompts, and conditions with live run output
+- **Memory** — Optional long-term memory via Minns: the agent recalls facts and past sessions
+- **Compare Mode** — Run one prompt against 2-3 models side by side
+- **Conversation Branches** — Fork a conversation at any message and explore alternatives
+- **Session Sharing** — Publish a read-only snapshot of a session with live viewer presence
 - **Workspace** — Configurable working directory for file ops and commands
+- **Context Search** — Keyword search over the workspace, auto-injected into code-related chats
+- **Git Status** — Live branch and working-tree state for the workspace
+- **Tool Approval & Audit Log** — Optionally approve each tool call; review everything that ran
+- **Notifications** — In-app alerts for cron successes and failures
+- **Voice Input** — Dictate messages using the browser's speech recognition
 - **Channels** — Optional webhooks for Telegram, Slack, WhatsApp, Discord, Google Chat
 - **Usage Tracking** — Per-session token usage and cost estimates
 
@@ -23,6 +33,99 @@ AI agent chat app with tools, skills, scheduled tasks, and multi-channel support
 - **Streaming** — Real-time streaming responses with tool calls and multi-step reasoning
 - **Generative UI** — Renders Tailwind HTML blocks, Tremor charts, code blocks, file diffs, and terminal output
 - **askChoice** — The agent can present clickable multiple-choice options for quick user decisions
+- **Attachments** — Drop in text files (up to 100KB) and images (up to 5MB) to include in a message
+- **Voice Input** — Dictate a message with the microphone button (browser speech recognition)
+- **Templates & Projects** — Start a session from a template, or switch projects to swap workspace and model together
+
+---
+
+## Workflows
+
+Chain steps into a repeatable pipeline from the **Workflows** panel:
+
+- **Command steps** — Run a shell command in the workspace
+- **Prompt steps** — Send text to the agent; `{{previousOutput}}` is substituted with the previous step's output
+- **Condition steps** — Branch to a named step based on an expression over the previous output
+
+Runs stream step-by-step over SSE, so you see each step start, finish, and fail in
+real time. A failing step stops the run unless it is marked "continue on error".
+Built-in examples ship with the app: **Test & Fix**, **Build & Deploy**, and
+**Daily Report**.
+
+---
+
+## Memory (Minns)
+
+Optional long-term memory powered by [Minns](https://minns.ai). When configured,
+the agent recalls relevant facts, past experiences, and learned strategies before
+each response and records the exchange afterwards. It also gets `saveMemory`,
+`recallMemory`, and `listMemories` tools.
+
+Configure via `MINNS_API_KEY` / `MINNS_PROJECT_ID`, or in **Settings → Memory**.
+Everything works without it — memory simply stays disabled.
+
+---
+
+## Compare Mode
+
+Run the same prompt against two or three models at once and see their answers,
+token counts, and latency side by side. Each model is raced against a 30 s
+timeout, so one slow provider does not hold up the rest, and a model that fails
+reports its error in place rather than breaking the comparison. Compare mode uses
+plain text generation — no tools.
+
+---
+
+## Conversation Branches
+
+Fork a conversation from any message to explore an alternative direction without
+losing the original. Each branch keeps its own message history, and the branch
+selector switches between them. Deleting a branch returns you to the main thread.
+
+---
+
+## Session Sharing
+
+Publish a read-only snapshot of a session to `/shared/<id>`. Re-sharing updates
+the snapshot in place. Viewers are tracked with a 30-second presence window, so
+the presence indicator shows who is currently reading along.
+
+---
+
+## Notifications
+
+Cron results and other alerts appear in the notification bell in the header, with
+an unread count. Notifications are transient — the server keeps the most recent
+100 in memory and the browser keeps 50 — so they are a live feed, not an archive.
+
+---
+
+## Tool Approval & Audit Log
+
+Turn on tool approval to review each tool call before it runs, with its
+parameters shown. Every invocation — approved, denied, or auto-run — is recorded
+in the tool audit log with its duration and result, so you can review what the
+agent actually did. The log holds the 100 most recent entries and resets on
+reload.
+
+---
+
+## Git Status
+
+The header shows the current branch and working-tree state of the workspace, with
+counts of staged, modified, and untracked files. Non-repository workspaces simply
+show nothing.
+
+---
+
+## Context Search
+
+A dependency-free keyword search over the workspace ranks files by filename,
+path, and content matches, returning the best matches with surrounding lines. It
+powers three things: the `searchContext` tool, the `/api/context` endpoint, and
+automatic context injection — when a message looks code-related, the top matches
+are inlined into the system prompt so the agent starts with the right files in
+view.
 
 ---
 
@@ -113,6 +216,13 @@ Open via the gear icon in the header:
 
 ---
 
+## Documentation
+
+- **[docs/API.md](docs/API.md)** — Complete REST reference for every endpoint, including streaming formats, request/response shapes, and error codes
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — Module map, the chat request data flow, and where state lives (server `.claw/` files vs. browser `localStorage`)
+
+---
+
 ## Getting Started
 
 ### 1. Install dependencies
@@ -164,21 +274,44 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 ```
 app/                    # Next.js app and API routes
   api/
-    chat/               # Chat streaming endpoint
+    chat/               # Chat streaming endpoint, plus compare/
+    config/             # Default workspace for the client
+    context/            # Workspace context search
     crons/              # Cron CRUD and run
     cron-sessions/      # Sessions created by prompt crons
     files/              # Serve workspace/public files
-    skills/             # List and install skills
-    webhooks/           # Telegram, Slack, WhatsApp webhooks
+    git/                # Workspace git status
+    memory/             # Minns memory browsing and config
+    notifications/      # In-app notification feed
+    providers/          # API key status and storage
+    sessions/           # Per-session usage, session sharing
+    skills/             # List, edit, install, and search skills
+    terminal/           # Streaming bash execution (SSE)
+    webhooks/           # Telegram, WhatsApp, and Chat SDK platforms
+    workflows/          # Workflow CRUD and streaming runner
+    workspace/          # Directory browsing
+  shared/[id]/          # Read-only shared session view
 components/             # React UI
-  chat/                 # ChatInterface, MessageList, InputBar
-  layout/               # Header, Sidebar, CommandPalette, CronsPanel
-  generative-ui/       # CodeBlock, FileDiff, TerminalOutput, charts
+  chat/                 # ChatInterface, MessageList, InputBar, CompareMode
+  layout/               # Header, Sidebar, CommandPalette, CronsPanel, GitStatus
+  generative-ui/        # CodeBlock, FileDiff, TerminalOutput, charts
+  workflows/            # Workflow editor, runner, panel
+  settings/             # Provider keys, memory settings
+  skills/               # Skill cards, editor, marketplace
 lib/                    # Core logic
-  chat/                 # Handler, config, session store
-  crons/                # Cron store, runner, cron sessions
-  tools/                # Bash, filesystem, executeCode, cron tools
+  chat/                 # Handler, config, session store, formatters
+  tools/                # Bash, filesystem, executeCode, cron, memory tools
   skills/               # Skill loader and manager
+  crons/                # Cron store, runner, cron sessions
+  workflows/            # Workflow types and store
+  memory/               # Minns client
+  models/               # Provider registry and model resolution
+  store/                # Zustand stores (sessions, branches, workflows, theme, …)
+  usage/                # Token usage and cost tracking
+  context/              # Workspace keyword search
+  hooks/                # React hooks (providers, attachments, live terminal)
 skills/                 # Built-in skills (agent-browser, coding, bash, etc.)
+types/                  # Shared TypeScript types
+docs/                   # API reference and architecture guide
 workspace/              # Default working directory
 ```

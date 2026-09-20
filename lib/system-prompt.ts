@@ -1,3 +1,11 @@
+/**
+ * @file System prompt assembly.
+ *
+ * Renders `lib/system-prompt.md` by substituting the current date/time, a
+ * workspace section, and the installed skills. The template is cached briefly so
+ * repeated requests do not re-read it from disk.
+ */
+
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { Skill } from "@/types";
@@ -15,6 +23,19 @@ async function loadPromptTemplate(): Promise<string> {
   return cachedPrompt;
 }
 
+/**
+ * Builds the agent's system prompt from the markdown template.
+ *
+ * Substitutes three placeholders: `{{CURRENT_DATETIME}}` (so the agent knows the
+ * current time), `{{WORKSPACE_SECTION}}` (working-directory and `public/` output
+ * conventions, omitted entirely when no workspace is given), and
+ * `{{SKILL_BLOCKS}}` (each skill's name, description, and body, or a hint about
+ * installing skills when none are loaded).
+ *
+ * @param skills        - Skills to inline into the prompt.
+ * @param workspacePath - Absolute workspace path, if the caller has one.
+ * @returns The fully rendered system prompt.
+ */
 export async function buildSystemPrompt(
   skills: Skill[],
   workspacePath?: string

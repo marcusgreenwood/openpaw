@@ -1,3 +1,11 @@
+/**
+ * Workspace directory browsing.
+ * GET /api/workspace?path= — validates an absolute path and lists its entries.
+ *
+ * Used by the workspace picker in Settings. Dotfiles are hidden and directories
+ * sort before files.
+ */
+
 import { NextResponse } from "next/server";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";

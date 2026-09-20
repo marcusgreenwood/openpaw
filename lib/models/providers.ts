@@ -1,9 +1,25 @@
+/**
+ * @file Model catalogue and provider resolution.
+ *
+ * Defines every model OpenPaw can talk to and maps a `provider/model` identifier
+ * onto a concrete AI SDK model instance. Model ids are always provider-prefixed
+ * (e.g. `anthropic/claude-sonnet-4-6`) so a single string fully identifies both
+ * the SDK to use and the model to request.
+ */
+
 import type { ModelConfig } from "@/types";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createMoonshotAI } from "@ai-sdk/moonshotai";
 
+/**
+ * Every model OpenPaw can use, grouped by provider key.
+ *
+ * The provider keys double as the canonical provider list: they drive the
+ * `/api/providers` status report, API-key storage, and the `provider/model`
+ * prefix understood by {@link resolveModel}.
+ */
 export const PROVIDER_REGISTRY: Record<string, ModelConfig[]> = {
   anthropic: [
     {
@@ -105,11 +121,26 @@ export const PROVIDER_REGISTRY: Record<string, ModelConfig[]> = {
   ],
 };
 
+/** Flattened view of {@link PROVIDER_REGISTRY}, for model pickers. */
 export const ALL_MODELS = Object.values(PROVIDER_REGISTRY).flat();
+/** Model used when a session does not specify one. */
 export const DEFAULT_MODEL_ID = "anthropic/claude-sonnet-4-6";
 
+/** Map of provider key → API key. */
 export type ApiKeys = Record<string, string>;
 
+/**
+ * Resolves a provider-prefixed model id to an AI SDK model instance.
+ *
+ * The id is split on the first `/`: the prefix selects the provider SDK and the
+ * remainder is passed through as the model name. When no key is supplied for the
+ * provider, the SDK falls back to its own environment-variable lookup.
+ *
+ * @param modelId - Provider-prefixed id, e.g. `anthropic/claude-sonnet-4-6`.
+ * @param apiKeys - Optional per-provider API keys.
+ * @returns The configured model instance.
+ * @throws If the provider prefix is not one of the known providers.
+ */
 export function resolveModel(
   modelId: string,
   apiKeys?: ApiKeys

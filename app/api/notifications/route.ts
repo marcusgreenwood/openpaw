@@ -1,3 +1,13 @@
+/**
+ * In-app notification feed (cron results and informational messages).
+ * GET    /api/notifications?since= — list notifications newer than a timestamp
+ * POST   /api/notifications — push a notification
+ * DELETE /api/notifications — clear all notifications
+ *
+ * Notifications are held in a module-level array capped at 100 entries: they do
+ * not survive a restart and are not shared between serverless instances.
+ */
+
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";

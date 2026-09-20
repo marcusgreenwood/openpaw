@@ -1,3 +1,13 @@
+/**
+ * Streaming bash execution.
+ * POST /api/terminal — runs a command in the workspace and streams output via SSE.
+ *
+ * Backs the LiveTerminal component, which renders output while an `executeBash`
+ * tool call is still in flight. Commands are screened against the same
+ * `BLOCKED_PATTERNS` blocklist the bash tool uses, run inside the workspace's
+ * Python virtualenv, and are killed after a 60 s timeout or on client abort.
+ */
+
 import { spawn } from "node:child_process";
 import * as path from "node:path";
 import { DEFAULT_WORKSPACE } from "@/lib/chat/config";

@@ -1,5 +1,13 @@
 "use client";
 
+/**
+ * @file Primary application store — sessions, model/workspace settings, templates, and projects.
+ *
+ * Persisted to localStorage under `openpaw-sessions`. Chat messages are not kept
+ * here: they live under `openpaw-messages-<sessionId>` via
+ * `lib/chat/client-messages.ts`.
+ */
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Session, ProjectProfile } from "@/types";
@@ -7,6 +15,7 @@ import { DEFAULT_MODEL_ID } from "@/lib/models/providers";
 import type { CronSessionData } from "@/lib/crons/cron-sessions";
 import { setPendingMessage } from "@/lib/store/pending-message";
 
+/** A reusable starting point for a new session — model, opening message, and label. */
 export interface SessionTemplate {
   id: string;
   name: string;
@@ -17,6 +26,7 @@ export interface SessionTemplate {
   modelId?: string;
 }
 
+/** Templates shipped with the app; always available alongside user-defined ones. */
 export const BUILT_IN_TEMPLATES: SessionTemplate[] = [
   {
     id: "builtin-code-review",
@@ -96,6 +106,19 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * Primary application store: chat sessions, the active session, global model and
+ * workspace settings, session templates, and project profiles.
+ *
+ * Persisted to localStorage under `openpaw-sessions`. `cronSessions` and
+ * `sidebarOpen` are deliberately excluded from persistence — the former is
+ * refetched from the server, the latter is per-visit UI state.
+ *
+ * Note that `createSessionFromTemplate` has side effects beyond the store: for a
+ * template with an opening message it stashes a pending message and dispatches
+ * the `openpaw-new-chat` window event so the chat UI sends it. `setActiveProject`
+ * also adopts the project's workspace path and, if set, its preferred model.
+ */
 export const useSessionsStore = create<SessionsState>()(
   persist(
     (set, get) => ({

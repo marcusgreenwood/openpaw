@@ -1,3 +1,12 @@
+/**
+ * Skill ecosystem search.
+ * GET /api/skills/search?q= — search installable skills; omit `q` for the featured list.
+ *
+ * Shells out to `npx skills find` and parses its output, falling back to
+ * filtering a built-in featured list when the CLI yields nothing. Results are
+ * cached in-process per query for 60 s.
+ */
+
 import { NextResponse } from "next/server";
 import { spawn } from "node:child_process";
 

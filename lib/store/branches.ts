@@ -1,8 +1,18 @@
 "use client";
 
+/**
+ * @file Conversation branch store.
+ *
+ * Lets a session fork from any message into an alternate line of conversation.
+ * Branch metadata is persisted to localStorage under `openpaw-branches`; the
+ * messages themselves live under branch-scoped keys managed by
+ * `lib/chat/client-messages.ts`.
+ */
+
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+/** An alternate line of conversation forked from a message in a session. */
 export interface ConversationBranch {
   id: string;
   sessionId: string;
@@ -31,6 +41,14 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * Store of conversation branches, keyed by session id.
+ *
+ * `createBranch` forks from a message, records the currently active branch as the
+ * new branch's parent, makes the new branch active, and returns its id.
+ * `switchBranch` accepts `null` to return to the main conversation, which is also
+ * where `deleteBranch` leaves the session if it removed the active branch.
+ */
 export const useBranchStore = create<BranchState>()(
   persist(
     (set, get) => ({
