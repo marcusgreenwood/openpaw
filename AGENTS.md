@@ -12,7 +12,7 @@ See `package.json` scripts and `README.md` for full details:
 
 - **Dev server:** `npm run dev` (port 3000)
 - **Build:** `npm run build`
-- **Lint:** `npm run lint` (ESLint; has pre-existing warnings/errors in the repo)
+- **Lint:** `npm run lint` (ESLint, run with `--max-warnings 0`; currently clean — zero errors, zero warnings. Use `npm run lint:fix` to auto-fix what is fixable.)
 - **Test:** `npm run test:usage` (usage tracking tests; requires `GOOGLE_GENERATIVE_AI_API_KEY`)
 
 ### Key caveats
@@ -21,7 +21,7 @@ See `package.json` scripts and `README.md` for full details:
 - The `postinstall` script runs `npx agent-browser install` which downloads Chromium (~280 MB). This is expected and normal.
 - At least one LLM API key must be configured for chat to work. Keys can be set via environment variables (`GOOGLE_GENERATIVE_AI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `MOONSHOT_API_KEY`) or through the in-app Settings UI. The default model may not match your configured key — use the model selector (top-right) to switch to a provider you have configured.
 - Chat state is stored in browser `localStorage` (Zustand/persist). Server-side config (API keys, crons, Minns memory) is stored as JSON files in `.claw/` directory.
-- The lint command (`npm run lint`) exits with code 1 due to pre-existing `react-hooks/set-state-in-effect` errors — this is a known issue in the repo, not an environment problem.
+- The lint command (`npm run lint`) exits 0 with zero errors and zero warnings, and must stay that way — a non-zero exit means your change introduced it, not a pre-existing repo issue. It runs with `--max-warnings 0`, so warn-level rules (such as `no-console`, and anything inherited from `eslint-config-next`) fail the run just like errors do. `npm run lint:fix` auto-fixes the mechanical violations. The ruleset is stricter than the `eslint-config-next` defaults (see `eslint.config.mjs`): unused vars are errors (prefix intentionally unused bindings with `_`), `eqeqeq`, `no-implicit-coercion` (use `Boolean(x)`, not `!!x`), `consistent-type-imports`, and `no-console` (only `console.warn`/`console.error`; `scripts/**` is exempt). The gitignored agent scratch directories (`workspace/`, `.claw/`, `.openpaw/`) are excluded from linting, so generated output there never fails the run.
 
 ### LiveTerminal (streaming bash output)
 

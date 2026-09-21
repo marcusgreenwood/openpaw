@@ -229,17 +229,7 @@ export async function handleChatStreaming(
     messages: modelMessages,
     tools,
     stopWhen: [stepCountIs(steps), hasToolCall("askChoice")],
-    onStepFinish({ toolCalls, finishReason }) {
-      console.log(
-        `[OpenPaw] reason=${finishReason} tools=${toolCalls.length}`
-      );
-    },
     onFinish({ text, totalUsage, providerMetadata, steps: finishedSteps }) {
-      console.log("[OpenPaw] onFinish", {
-        sessionId: sessionId ?? "(missing)",
-        inputTokens: totalUsage.inputTokens,
-        outputTokens: totalUsage.outputTokens,
-      });
       recordUsage(sessionId, modelId, totalUsage, providerMetadata);
 
       if (sessionId && lastUserText && text) {
@@ -283,11 +273,6 @@ export async function handleChatBlocking(
       messages,
       tools,
       stopWhen: [stepCountIs(MAX_TOOL_STEPS), hasToolCall("askChoice")],
-      onStepFinish({ toolCalls, finishReason }) {
-        console.log(
-          `[OpenPaw:blocking] reason=${finishReason} tools=${toolCalls.length}`
-        );
-      },
     }),
     new Promise<never>((_, reject) =>
       setTimeout(

@@ -66,7 +66,6 @@ export async function ensureVenv(workspacePath: string): Promise<boolean> {
   await fs.mkdir(resolved, { recursive: true });
 
   const pythonCmd = await getPreferredPython();
-  console.log(`[OpenPaw] Creating venv with: ${pythonCmd}`);
 
   // When using bare "python3", prepend common Python 3.14 paths so it resolves correctly
   const baseEnv = { ...process.env };
@@ -95,7 +94,7 @@ export async function ensureVenv(workspacePath: string): Promise<boolean> {
       if (code === 0) {
         resolve(true);
       } else {
-        console.warn(`[OpenPaw] Failed to create venv: ${stderr}`);
+        console.warn(`[OpenPaw] Failed to create venv with ${pythonCmd}: ${stderr}`);
         resolve(false);
       }
     });

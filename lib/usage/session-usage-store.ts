@@ -104,7 +104,7 @@ export function recordUsage(
   providerMetadata?: unknown
 ): void {
   if (!sessionId) {
-    console.log("[OpenPaw] recordUsage: skipped (no sessionId)");
+    console.warn("[OpenPaw] recordUsage: skipped (no sessionId)");
     return;
   }
 
@@ -136,7 +136,7 @@ export function recordUsage(
       list.push(record);
       store.set(sessionId, list);
       saveStore(store);
-      console.log("[OpenPaw] recordUsage: recorded (fallback, no cost)", {
+      console.warn("[OpenPaw] recordUsage: recorded (fallback, no cost)", {
         sessionId,
         promptTokens: record.promptTokens,
         completionTokens: record.completionTokens,
@@ -183,12 +183,6 @@ export function recordUsage(
     list.push(record);
     store.set(sessionId, list);
     saveStore(store);
-    console.log("[OpenPaw] recordUsage: recorded", {
-      sessionId,
-      promptTokens: record.promptTokens,
-      completionTokens: record.completionTokens,
-      costUsd: record.costUsd,
-    });
   } catch (err) {
     console.warn("[OpenPaw] Failed to record usage:", err);
   }

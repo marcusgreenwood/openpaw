@@ -70,7 +70,7 @@ export function getTelegramConfig(): ChannelConfig {
   const stored = getCachedStoredConfig();
   const token = process.env.TELEGRAM_BOT_TOKEN || stored.telegram?.token || "";
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET || stored.telegram?.secret || "";
-  return { enabled: !!token, token, secret, extra: {} };
+  return { enabled: Boolean(token), token, secret, extra: {} };
 }
 
 /**
@@ -82,7 +82,7 @@ export function getSlackConfig(): ChannelConfig {
   const stored = getCachedStoredConfig();
   const token = process.env.SLACK_BOT_TOKEN || stored.slack?.token || "";
   const secret = process.env.SLACK_SIGNING_SECRET || stored.slack?.secret || "";
-  return { enabled: !!token, token, secret, extra: {} };
+  return { enabled: Boolean(token), token, secret, extra: {} };
 }
 
 export function getWhatsAppConfig(): ChannelConfig {
@@ -90,7 +90,7 @@ export function getWhatsAppConfig(): ChannelConfig {
   const token = process.env.WHATSAPP_ACCESS_TOKEN || stored.whatsapp?.token || "";
   const secret = process.env.WHATSAPP_VERIFY_TOKEN || stored.whatsapp?.secret || "";
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || stored.whatsapp?.phoneNumberId || "";
-  return { enabled: !!token, token, secret, extra: { phoneNumberId } };
+  return { enabled: Boolean(token), token, secret, extra: { phoneNumberId } };
 }
 
 /* ------------------------------------------------------------------ */
@@ -101,14 +101,14 @@ export function getDiscordConfig(): ChannelConfig {
   const stored = getCachedStoredConfig();
   const token = process.env.DISCORD_BOT_TOKEN || stored.discord?.token || "";
   const secret = process.env.DISCORD_PUBLIC_KEY || stored.discord?.secret || "";
-  return { enabled: !!token, token, secret, extra: {} };
+  return { enabled: Boolean(token), token, secret, extra: {} };
 }
 
 export function getGoogleChatConfig(): ChannelConfig {
   const stored = getCachedStoredConfig();
   const token = process.env.GOOGLE_CHAT_SERVICE_ACCOUNT_KEY || stored.gchat?.token || "";
   const secret = process.env.GOOGLE_CHAT_PROJECT_ID || stored.gchat?.secret || "";
-  return { enabled: !!token, token, secret, extra: {} };
+  return { enabled: Boolean(token), token, secret, extra: {} };
 }
 
 /** Returns which channels are currently configured / enabled */
