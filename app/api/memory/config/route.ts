@@ -27,7 +27,7 @@ export async function GET() {
   return NextResponse.json({
     enabled,
     source: envKey ? "env" : storedKey ? "stored" : "none",
-    hasApiKey: !!(envKey || storedKey),
+    hasApiKey: Boolean(envKey || storedKey),
     maskedKey: envKey
       ? `****${envKey.slice(-4)}`
       : storedKey

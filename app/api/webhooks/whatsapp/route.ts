@@ -106,10 +106,12 @@ export async function GET(req: Request) {
   const challenge = searchParams.get("hub.challenge");
 
   if (mode === "subscribe" && token === config.secret) {
-    console.log("[WhatsApp] Webhook verified successfully");
     return new Response(challenge, { status: 200 });
   }
 
+  console.warn(
+    `[WhatsApp] Webhook verification failed (mode=${mode ?? "(none)"}, verify token mismatch)`
+  );
   return NextResponse.json({ error: "Verification failed" }, { status: 403 });
 }
 

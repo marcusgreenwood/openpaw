@@ -20,12 +20,6 @@ export async function POST(req: Request) {
     maxToolSteps?: number;
   };
 
-  console.log("[OpenPaw] POST /api/chat", {
-    bodyKeys: Object.keys(body),
-    sessionId: sessionId ?? "(missing)",
-    messageCount: Array.isArray(messages) ? messages.length : 0,
-  });
-
   const messagesArray = Array.isArray(messages) ? messages : [];
 
   const result = await handleChatStreaming(

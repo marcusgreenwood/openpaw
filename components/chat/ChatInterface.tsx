@@ -138,7 +138,7 @@ export function ChatInterface() {
     messages: initialMessages,
   });
 
-  useCatReactions(status, messages.length, !!error);
+  useCatReactions(status, messages.length, Boolean(error));
 
   // Send pending message from command palette (cmd+k) or cron run now
   useEffect(() => {

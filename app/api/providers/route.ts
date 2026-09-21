@@ -50,7 +50,7 @@ export async function GET() {
     }
 
     providers[provider] = {
-      configured: !!envVal || !!storedVal,
+      configured: Boolean(envVal) || Boolean(storedVal),
       source,
       masked,
     };

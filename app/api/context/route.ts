@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import * as path from "node:path";
 import { searchWorkspaceContext } from "@/lib/context/search";
 import { DEFAULT_WORKSPACE } from "@/lib/chat/config";

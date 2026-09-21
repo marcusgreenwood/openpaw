@@ -83,7 +83,7 @@ export function getApiKey(provider: string): string | undefined {
 }
 
 export function isProviderConfigured(provider: string): boolean {
-  return !!getApiKey(provider);
+  return Boolean(getApiKey(provider));
 }
 
 /** Mask for safe display: "****abcd" */
