@@ -75,6 +75,11 @@ and subject length from `commitlint.config.js`, so the rules live in exactly one
 place. It **never rewrites history and never modifies a file** — `--suggest`
 output is advisory text you can copy, nothing more.
 
+Every suggestion is itself piped back through commitlint before it is printed.
+The rewrite heuristics are best-effort, so on the rare subject they cannot
+repair (an empty or punctuation-only one, say) the output carries a `warning:`
+line instead of being presented as a fix.
+
 Results land in three buckets:
 
 - **valid** — passes commitlint.
@@ -82,20 +87,25 @@ Results land in three buckets:
 - **ignored** — merge commits, reverts and `fixup!`/`squash!` commits, which
   commitlint skips by default.
 
-Run the unit tests for the auditor's helpers with:
+Run the auditor's test suite with:
 
 ```bash
 npm run test:commit-audit
 ```
 
+It unit-tests each helper and then round-trips a corpus of real non-conforming
+subjects from this repo's history through `--suggest` and back into the
+commitlint binary, asserting every suggestion actually passes.
+
 #### Why the legacy commits are left alone
 
-Commitlint was added part-way through this project's life. Of the 36 commits
-currently reachable from `HEAD`, 12 predate it and do not conform — for example
+Commitlint was added part-way through this project's life. A dozen commits
+reachable from `HEAD` predate it and do not conform — for example
 `Initial commit from Create Next App` and
 `Add agent memory feature powered by Minns Memory Layer`. These are intentionally
 **not** being fixed: rewriting merged history would invalidate every existing
-clone, branch and pull request for no functional gain.
+clone, branch and pull request for no functional gain. Run
+`npm run commit:audit -- --suggest` for the current list.
 
 Because of that baseline, `npm run commit:audit` exits 0 by default — it is a
 reporting tool, not a gate. Use `--strict` on a range that starts after

@@ -14,9 +14,11 @@ import {
   SUBJECT_MAX_LENGTH,
   inferType,
   isIgnoredSubject,
+  lintMessage,
   lowercaseFirstWord,
   parseArgs,
   parseRuleNames,
+  resolveCommitlint,
   splitLog,
   stripTrailingPeriod,
   suggestSubject,
@@ -104,16 +106,24 @@ test('isIgnoredSubject matches commitlint default ignores only', () => {
   }
 });
 
-test('lowercaseFirstWord lowercases prose but leaves identifiers alone', () => {
+test('lowercaseFirstWord lowers the leading word, acronyms and identifiers included', () => {
   assert.equal(lowercaseFirstWord('Add streaming support'), 'add streaming support');
-  assert.equal(lowercaseFirstWord('API rate limiting'), 'API rate limiting');
-  assert.equal(lowercaseFirstWord('LiveTerminal streaming notes'), 'LiveTerminal streaming notes');
+  // config-conventional's subject-case rejects any leading capital, so there is
+  // no exemption for acronyms or CamelCase; see the round-trip test below.
+  assert.equal(lowercaseFirstWord('API rate limiting'), 'api rate limiting');
+  assert.equal(lowercaseFirstWord('LiveTerminal streaming notes'), 'liveTerminal streaming notes');
+  assert.equal(lowercaseFirstWord('OpenPaw: AI agent chat'), 'openPaw: AI agent chat');
+  // Interior capitals are preserved, and a non-letter lead is left as-is.
+  assert.equal(lowercaseFirstWord('iOS build fix'), 'iOS build fix');
+  assert.equal(lowercaseFirstWord('[WIP] add thing'), '[WIP] add thing');
   assert.equal(lowercaseFirstWord(''), '');
 });
 
-test('stripTrailingPeriod removes exactly one trailing full stop', () => {
+test('stripTrailingPeriod removes the trailing full stop, including a run', () => {
   assert.equal(stripTrailingPeriod('add a thing.'), 'add a thing');
   assert.equal(stripTrailingPeriod('add a thing.  '), 'add a thing');
+  // commitlint only inspects the last character, so one pass has to clear them all.
+  assert.equal(stripTrailingPeriod('add a thing...'), 'add a thing');
   assert.equal(stripTrailingPeriod('add a thing'), 'add a thing');
   assert.equal(stripTrailingPeriod('bump to v1.2.0'), 'bump to v1.2.0');
 });
@@ -222,12 +232,80 @@ test('ALLOWED_TYPES comes from the repo commitlint config', () => {
 
 test('suggestSubject does not mistake arbitrary prose prefixes for a type', () => {
   // `OpenPaw:` is not in type-enum, so it must be treated as description text
-  // and given a real inferred type rather than passed through as the type.
-  const suggestion = suggestSubject({
-    subject: 'OpenPaw: AI agent chat with tools, skills, and multi-channel support',
-    files: ['app/page.tsx'],
-  });
-  const type = suggestion.slice(0, suggestion.indexOf(':'));
-  assert.ok(ALLOWED_TYPES.includes(type), `inferred type ${type} must be allowed`);
-  assert.ok(suggestion.includes('OpenPaw: AI agent chat'));
+  // and given a real inferred type rather than passed through as the type. The
+  // leading capital then has to go too, or subject-case rejects the result.
+  assert.equal(
+    suggestSubject({
+      subject: 'OpenPaw: AI agent chat with tools, skills, and multi-channel support',
+      files: ['app/page.tsx'],
+    }),
+    'chore: openPaw: AI agent chat with tools, skills, and multi-channel support',
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Round-trip: every suggestion must actually satisfy the repo's commitlint.
+//
+// This is the test that matters. The hand-written assertions above pin the
+// shape of each heuristic, but only feeding the output back into the real
+// binary proves the composed result conforms — an assertion like "the inferred
+// type is allowed" is strictly weaker and let a subject-case violation through
+// once already.
+// ---------------------------------------------------------------------------
+
+/** Real non-conforming subjects from this repo's history, plus hard synthetics. */
+const NON_CONFORMING_CORPUS = [
+  // Verbatim from `git log --all --format=%s`.
+  { subject: 'Initial commit from Create Next App', files: ['package.json'] },
+  { subject: 'OpenPaw: AI agent chat with tools, skills, and multi-channel support', files: ['app/page.tsx'] },
+  { subject: 'Add agent memory feature powered by Minns Memory Layer', files: ['lib/memory/client.ts'] },
+  { subject: 'Add AGENTS.md with Cursor Cloud specific instructions for OpenPaw dev setup', files: ['AGENTS.md'] },
+  { subject: 'Add memory tools for OpenPaw agent to interact with Minns memory system', files: ['lib/tools/memory.ts'] },
+  { subject: 'Add configurable max tool steps and Continue banner', files: ['app/page.tsx'] },
+  { subject: 'Add scheduled tasks (crons), prompt crons, Run now, and update README', files: ['lib/cron.ts', 'README.md'] },
+  { subject: 'Update AGENTS.md with memory feature documentation', files: ['AGENTS.md'] },
+  { subject: 'Improve system prompt: favor agent-browser for web, enforce skill docs', files: ['lib/prompt.ts'] },
+  { subject: 'Overhaul system prompt to fix loops, redundant tool calls, and tool learning', files: ['lib/prompt.ts'] },
+  { subject: 'Revamp skills manager: installed skills list with edit/delete, find-skills search', files: ['app/skills/page.tsx'] },
+  // Synthetics covering the cases the old acronym/CamelCase escape hatches broke.
+  { subject: 'API rate limiting', files: ['app/api/route.ts'] },
+  { subject: 'LiveTerminal streaming notes', files: ['AGENTS.md'] },
+  { subject: 'UI polish.', files: ['app/page.tsx'] },
+  { subject: 'iOS build fix', files: ['app/page.tsx'] },
+  { subject: 'CHANGED the parser.', files: ['lib/parser.ts'] },
+  { subject: 'Added retry logic.', files: ['lib/chat.ts'] },
+  { subject: 'feat(chat): Added retry logic.', files: ['lib/chat.ts'] },
+  { subject: 'Wrangled ZodSchema parsing', files: ['lib/schema.ts'] },
+  { subject: `Added ${'a very long clause '.repeat(12)}at the very end`, files: ['lib/chat.ts'] },
+];
+
+const runner = resolveCommitlint();
+
+test('every suggestSubject output passes the repo commitlint binary', { skip: runner.local ? false : 'commitlint is not installed locally' }, () => {
+  for (const commit of NON_CONFORMING_CORPUS) {
+    // Sanity: the corpus really is non-conforming, otherwise the test is vacuous.
+    assert.equal(
+      lintMessage(runner, commit.subject).ok,
+      false,
+      `corpus entry already conforms, pick a harder one: ${commit.subject}`,
+    );
+
+    const suggestion = suggestSubject(commit);
+    const result = lintMessage(runner, suggestion);
+    assert.equal(
+      result.ok,
+      true,
+      `suggestion "${suggestion}" for "${commit.subject}" still violates ${result.rules.join(', ') || 'commitlint'}`,
+    );
+  }
+});
+
+test('the heuristics cannot repair a degenerate subject, so the runtime check earns its keep', { skip: runner.local ? false : 'commitlint is not installed locally' }, () => {
+  // A subject with no words left after normalisation has nothing to rebuild
+  // from. The CLI runs every suggestion back through commitlint precisely so
+  // cases like this get labelled instead of printed as if they were fixes.
+  const suggestion = suggestSubject({ subject: '.', files: [] });
+  const result = lintMessage(runner, suggestion);
+  assert.equal(result.ok, false);
+  assert.ok(result.rules.includes('subject-empty'), result.rules.join(', '));
 });

@@ -19,6 +19,9 @@
  *   --to <ref>         End of the range. Defaults to HEAD.
  *   --all              Audit every commit reachable from every ref.
  *   --suggest          Print a proposed conforming subject for each violation.
+ *                      Each suggestion is itself run through commitlint, and
+ *                      any that still fail are flagged rather than presented
+ *                      as fixes.
  *   --strict           Exit 1 if any non-ignored commit fails validation.
  *   --json             Emit machine-readable JSON instead of a text report.
  *   --help             Show this message.
@@ -237,7 +240,14 @@ export function isIgnoredSubject(subject) {
 }
 
 /**
- * Lowercase the leading word unless it looks like an acronym or identifier.
+ * Lowercase the leading word so the subject clears `subject-case`.
+ *
+ * config-conventional rejects any subject whose first character is upper case,
+ * so there is no exemption to carve out here: an acronym or CamelCase
+ * identifier in the leading position has to be lowered like anything else. An
+ * ALL-CAPS acronym reads better fully lowercased (`API rate` -> `api rate`);
+ * everything else only needs its first character dropped, which preserves
+ * interior capitals (`OpenPaw:` -> `openPaw:`).
  *
  * @param {string} subject
  * @returns {string}
@@ -245,20 +255,23 @@ export function isIgnoredSubject(subject) {
 export function lowercaseFirstWord(subject) {
   const [first, ...rest] = subject.split(' ');
   if (first === undefined || first === '') return subject;
-  // Leave ALL-CAPS acronyms and CamelCase identifiers alone.
-  if (first === first.toUpperCase() && first.length > 1) return subject;
-  if (/[A-Z]/.test(first.slice(1))) return subject;
-  return [first.charAt(0).toLowerCase() + first.slice(1), ...rest].join(' ');
+  const lowered = /^[A-Z][A-Z0-9]+$/.test(first)
+    ? first.toLowerCase()
+    : first.charAt(0).toLowerCase() + first.slice(1);
+  return [lowered, ...rest].join(' ');
 }
 
 /**
- * Strip a single trailing period (`subject-full-stop`).
+ * Strip the trailing full stop (`subject-full-stop`).
+ *
+ * A run of periods is removed rather than just one, since commitlint only looks
+ * at the final character and `thing..` would otherwise still fail.
  *
  * @param {string} subject
  * @returns {string}
  */
 export function stripTrailingPeriod(subject) {
-  return subject.replace(/\.\s*$/, '');
+  return subject.replace(/\.+\s*$/, '');
 }
 
 /**
@@ -376,14 +389,23 @@ function git(args) {
 /**
  * Prefer the locally installed commitlint binary; fall back to `npx --no`.
  * Either way the repo's own commitlint.config.js supplies the rules.
+ *
+ * @returns {{command: string, prefix: string[], local: boolean}}
  */
-function resolveCommitlint() {
+export function resolveCommitlint() {
   const local = path.join(repoRoot, 'node_modules', '.bin', 'commitlint');
-  if (existsSync(local)) return { command: local, prefix: [] };
-  return { command: 'npx', prefix: ['--no', '--', 'commitlint'] };
+  if (existsSync(local)) return { command: local, prefix: [], local: true };
+  return { command: 'npx', prefix: ['--no', '--', 'commitlint'], local: false };
 }
 
-function lintMessage(runner, message) {
+/**
+ * Validate one message by piping it to the commitlint CLI.
+ *
+ * @param {{command: string, prefix: string[]}} runner From resolveCommitlint().
+ * @param {string} message Full commit message (subject + body).
+ * @returns {{ok: boolean, output: string, rules: string[]}}
+ */
+export function lintMessage(runner, message) {
   const result = spawnSync(runner.command, runner.prefix, {
     cwd: repoRoot,
     input: message,
@@ -428,6 +450,10 @@ function printTextReport(report, options) {
       if (options.suggest && commit.suggestion) {
         if (commit.suggestion === commit.subject) {
           console.log('      suggest:  subject already conforms; the violation is in the body or footer');
+        } else if (commit.suggestionConforms === false) {
+          console.log(`      suggest:  ${commit.suggestion}`);
+          const unresolved = commit.suggestionRules?.join(', ') || 'commitlint';
+          console.log(`      warning:  the suggestion above still fails ${unresolved}; rewrite it by hand`);
         } else {
           console.log(`      suggest:  ${commit.suggestion}`);
         }
@@ -509,6 +535,12 @@ function main(argv) {
     const entry = { hash: commit.hash, subject: commit.subject, rules: result.rules, output: result.output };
     if (options.suggest) {
       entry.suggestion = suggestSubject({ subject: commit.subject, files: changedFiles(commit.hash) });
+      // Never print a suggestion as if it conforms without asking commitlint.
+      // The heuristics are best-effort; a subject they cannot repair gets
+      // labelled rather than quietly handed to the reader as a fix.
+      const check = lintMessage(runner, entry.suggestion);
+      entry.suggestionConforms = check.ok;
+      entry.suggestionRules = check.rules;
     }
     invalid.push(entry);
   }
