@@ -10,7 +10,9 @@
     "test:usage": "tsx scripts/test-usage.ts",
     "postinstall": "npx agent-browser install",
     "prepare": "husky",
-    "commitlint": "commitlint --from HEAD~1 --to HEAD"
+    "commitlint": "commitlint --from HEAD~1 --to HEAD",
+    "commit:audit": "node scripts/audit-commit-messages.mjs",
+    "test:commit-audit": "node --test scripts/audit-commit-messages.test.mjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.46",

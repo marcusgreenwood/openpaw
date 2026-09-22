@@ -55,3 +55,48 @@ exponential backoff. Users see a loading indicator during retry.
 
 The commit-msg hook runs `commitlint` automatically on every commit.
 If your commit message is invalid, the commit will be rejected with an error message explaining what needs to be fixed.
+
+### Auditing existing history
+
+The commit-msg hook only sees *new* commits. To check what is already in the
+history, use the read-only auditor:
+
+```bash
+npm run commit:audit                      # audit HEAD, report only
+npm run commit:audit -- --suggest         # also print a proposed conforming subject
+npm run commit:audit -- --strict          # exit 1 if any non-ignored commit fails
+npm run commit:audit -- --json            # machine-readable output for CI
+npm run commit:audit -- HEAD~20..HEAD     # restrict to a range
+npm run commit:audit -- --from v1.0.0     # or use --from/--to
+```
+
+The auditor pipes each message to the commitlint CLI and reads the allowed types
+and subject length from `commitlint.config.js`, so the rules live in exactly one
+place. It **never rewrites history and never modifies a file** — `--suggest`
+output is advisory text you can copy, nothing more.
+
+Results land in three buckets:
+
+- **valid** — passes commitlint.
+- **invalid** — fails, with the violated rule names listed.
+- **ignored** — merge commits, reverts and `fixup!`/`squash!` commits, which
+  commitlint skips by default.
+
+Run the unit tests for the auditor's helpers with:
+
+```bash
+npm run test:commit-audit
+```
+
+#### Why the legacy commits are left alone
+
+Commitlint was added part-way through this project's life. Of the 36 commits
+currently reachable from `HEAD`, 12 predate it and do not conform — for example
+`Initial commit from Create Next App` and
+`Add agent memory feature powered by Minns Memory Layer`. These are intentionally
+**not** being fixed: rewriting merged history would invalidate every existing
+clone, branch and pull request for no functional gain.
+
+Because of that baseline, `npm run commit:audit` exits 0 by default — it is a
+reporting tool, not a gate. Use `--strict` on a range that starts after
+commitlint landed if you want CI to fail on new violations.
