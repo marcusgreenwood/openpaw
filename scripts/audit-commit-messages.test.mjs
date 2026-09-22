@@ -124,6 +124,10 @@ test('stripTrailingPeriod removes the trailing full stop, including a run', () =
   assert.equal(stripTrailingPeriod('add a thing.  '), 'add a thing');
   // commitlint only inspects the last character, so one pass has to clear them all.
   assert.equal(stripTrailingPeriod('add a thing...'), 'add a thing');
+  // Periods and spaces go as a single run: a leftover '.' fails subject-full-stop
+  // and a leftover ' ' fails header-trim.
+  assert.equal(stripTrailingPeriod('add a thing . .'), 'add a thing');
+  assert.equal(stripTrailingPeriod('update deps .'), 'update deps');
   assert.equal(stripTrailingPeriod('add a thing'), 'add a thing');
   assert.equal(stripTrailingPeriod('bump to v1.2.0'), 'bump to v1.2.0');
 });
@@ -199,6 +203,22 @@ test('suggestSubject never exceeds the commitlint subject budget', () => {
   });
   assert.ok(suggestion.length <= SUBJECT_MAX_LENGTH, `got ${suggestion.length}`);
   assert.ok(suggestion.startsWith('feat: add '));
+});
+
+test('suggestSubject re-strips a full stop exposed by truncation', () => {
+  // Clipping a two-sentence subject to the budget can land the cut just past an
+  // interior period, so the period strip has to run after truncation, not only
+  // before it.
+  const suggestion = suggestSubject({
+    subject: 'Fixed the retry loop that hammered the provider API whenever a tool call timed out mid stream. Tests updated.',
+    files: ['lib/chat.ts'],
+  });
+  assert.ok(suggestion.length <= SUBJECT_MAX_LENGTH, `got ${suggestion.length}`);
+  assert.ok(!suggestion.endsWith('.'), suggestion);
+  assert.equal(
+    suggestion,
+    'fix: fix the retry loop that hammered the provider API whenever a tool call timed out mid stream',
+  );
 });
 
 test('parseRuleNames extracts deduplicated commitlint rule ids', () => {
@@ -277,6 +297,13 @@ const NON_CONFORMING_CORPUS = [
   { subject: 'feat(chat): Added retry logic.', files: ['lib/chat.ts'] },
   { subject: 'Wrangled ZodSchema parsing', files: ['lib/schema.ts'] },
   { subject: `Added ${'a very long clause '.repeat(12)}at the very end`, files: ['lib/chat.ts'] },
+  // Truncation that lands just past an interior full stop (subject-full-stop).
+  {
+    subject: 'Fixed the retry loop that hammered the provider API whenever a tool call timed out mid stream. Tests updated.',
+    files: ['lib/chat.ts'],
+  },
+  // A detached full stop, which leaves a trailing space behind (header-trim).
+  { subject: 'Update deps .', files: ['package.json'] },
 ];
 
 const runner = resolveCommitlint();

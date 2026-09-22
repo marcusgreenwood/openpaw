@@ -76,9 +76,14 @@ place. It **never rewrites history and never modifies a file** — `--suggest`
 output is advisory text you can copy, nothing more.
 
 Every suggestion is itself piped back through commitlint before it is printed.
-The rewrite heuristics are best-effort, so on the rare subject they cannot
-repair (an empty or punctuation-only one, say) the output carries a `warning:`
-line instead of being presented as a fix.
+The rewrite heuristics are best-effort and are not claimed to be exhaustive:
+they repair every non-conforming subject currently in this repo's history and
+every case in the test corpus, but a subject they cannot repair (one with
+nothing left after normalisation, such as an empty, whitespace-only or
+punctuation-only subject) gets a `warning:` line naming the rules it still
+violates instead of being presented as a fix. Treat that runtime check, not the
+heuristics, as the guarantee: nothing is printed as conforming unless
+commitlint agreed.
 
 Results land in three buckets:
 
@@ -94,8 +99,10 @@ npm run test:commit-audit
 ```
 
 It unit-tests each helper and then round-trips a corpus of real non-conforming
-subjects from this repo's history through `--suggest` and back into the
-commitlint binary, asserting every suggestion actually passes.
+subjects from this repo's history — plus synthetics for the awkward cases
+(leading acronyms, a full stop exposed by truncation, a detached full stop) —
+through `--suggest` and back into the commitlint binary, asserting every
+suggestion actually passes.
 
 #### Why the legacy commits are left alone
 

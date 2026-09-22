@@ -262,16 +262,18 @@ export function lowercaseFirstWord(subject) {
 }
 
 /**
- * Strip the trailing full stop (`subject-full-stop`).
+ * Strip trailing full stops (`subject-full-stop`) and the whitespace around them.
  *
- * A run of periods is removed rather than just one, since commitlint only looks
- * at the final character and `thing..` would otherwise still fail.
+ * Periods and spaces are consumed as one trailing run rather than a single
+ * period, because commitlint only inspects the last character: `thing..` and
+ * `thing . .` would each still end in a full stop after one pass, and
+ * `thing .` would be left with a trailing space that trips `header-trim`.
  *
  * @param {string} subject
  * @returns {string}
  */
 export function stripTrailingPeriod(subject) {
-  return subject.replace(/\.+\s*$/, '');
+  return subject.replace(/[.\s]+$/, '');
 }
 
 /**
@@ -358,7 +360,10 @@ export function suggestSubject({ subject, files = [] }, allowedTypes = ALLOWED_T
   text = lowercaseFirstWord(text);
 
   const prefix = `${type}${scope}: `;
-  return prefix + truncate(text, SUBJECT_MAX_LENGTH - prefix.length);
+  // Strip again *after* truncation: clipping a multi-sentence subject down to
+  // the budget can expose an interior full stop as the new final character,
+  // which `subject-full-stop` rejects just the same.
+  return prefix + stripTrailingPeriod(truncate(text, SUBJECT_MAX_LENGTH - prefix.length));
 }
 
 /**
