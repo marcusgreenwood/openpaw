@@ -25,8 +25,25 @@ This project enforces [Conventional Commits](https://www.conventionalcommits.org
 
 ### Rules
 
-- Subject line must not exceed **100 characters**
-- Use **imperative mood** ("add feature" not "added feature")
+- The header — the whole `type(scope): subject` line, not the subject alone —
+  must not exceed **100 characters**. A `feat: ` prefix therefore leaves 94
+  characters for the subject, and a `feat(chat): ` prefix leaves 88.
+- Use **imperative mood** ("add feature" not "added feature"). This is enforced:
+
+  ```
+  # rejected
+  feat: added retry handling to the chat client
+
+  # accepted
+  feat: add retry handling to the chat client
+  ```
+
+  The check only inspects the first word of the subject, and only flags a
+  curated list of known non-imperative verb forms (`added`, `fixes`, `updating`,
+  and similar) — naming the imperative replacement in the error. It does not
+  guess from word endings, so subjects like `fix: speed up the parser` or
+  `feat: address the stream reader race` pass untouched. If it misses a form you
+  think it should catch, add it to the list in `commitlint/imperative-mood.cjs`.
 - Do not end the subject with a period
 
 ### Examples
@@ -55,3 +72,10 @@ exponential backoff. Users see a loading indicator during retry.
 
 The commit-msg hook runs `commitlint` automatically on every commit.
 If your commit message is invalid, the commit will be rejected with an error message explaining what needs to be fixed.
+
+The project's custom commitlint rules live in `commitlint/` and have their own
+test suite. Run it with:
+
+```
+npm run test:commitlint-rules
+```

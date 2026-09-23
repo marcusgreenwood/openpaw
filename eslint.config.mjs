@@ -13,6 +13,14 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // commitlint loads its config and custom rules through `require`, so these
+    // files have to stay CommonJS.
+    files: ["commitlint.config.js", "commitlint/**/*.cjs"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
