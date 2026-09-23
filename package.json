@@ -2,6 +2,9 @@
   "name": "claw-init",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,7 +14,7 @@
     "postinstall": "npx agent-browser install",
     "prepare": "husky",
     "commitlint": "commitlint --from HEAD~1 --to HEAD",
-    "test:commitlint-rules": "node --test \"commitlint/*.test.cjs\""
+    "test:commitlint-rules": "node --test commitlint/*.test.cjs"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.46",

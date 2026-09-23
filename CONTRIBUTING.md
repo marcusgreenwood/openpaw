@@ -38,12 +38,26 @@ This project enforces [Conventional Commits](https://www.conventionalcommits.org
   feat: add retry handling to the chat client
   ```
 
-  The check only inspects the first word of the subject, and only flags a
-  curated list of known non-imperative verb forms (`added`, `fixes`, `updating`,
-  and similar) — naming the imperative replacement in the error. It does not
-  guess from word endings, so subjects like `fix: speed up the parser` or
-  `feat: address the stream reader race` pass untouched. If it misses a form you
-  think it should catch, add it to the list in `commitlint/imperative-mood.cjs`.
+  The check only inspects the first word of the subject, and only flags the
+  non-imperative inflections of a curated list of verbs — `added`/`adds`/`adding`
+  for `add`, and the same three forms for `fix`, `update`, `remove`, `change`,
+  `refactor`, `implement`, `create`, `bump`, `rename`, `move`, `improve`,
+  `resolve`, `revert`, `drop`, `ship` and `wrap`. The error names the imperative
+  replacement. It does not guess from word endings, so subjects like
+  `fix: speed up the parser` or `feat: address the stream reader race` pass
+  untouched.
+
+  One consequence worth knowing: a subject opening with a plural noun that
+  happens to be one of those forms is rejected too — `docs: updates to the
+  README` fails and wants `docs: update the README`. That is the house style
+  either way, so the rule is left as is.
+
+  To teach it another verb, add the imperative form to `VERBS` in
+  `commitlint/imperative-mood.cjs`; all three inflections are derived from it, so
+  a verb can never end up half-covered. Verbs needing a doubled consonant or an
+  irregular past tense go in the `IRREGULAR` table beside it. Add the verb to
+  `EXPECTED_FORMS` in the test file as well — the suite asserts the two lists
+  agree, so a verb added in only one place fails.
 - Do not end the subject with a period
 
 ### Examples
