@@ -25,8 +25,39 @@ This project enforces [Conventional Commits](https://www.conventionalcommits.org
 
 ### Rules
 
-- Subject line must not exceed **100 characters**
-- Use **imperative mood** ("add feature" not "added feature")
+- The header — the whole `type(scope): subject` line, not the subject alone —
+  must not exceed **100 characters**. A `feat: ` prefix therefore leaves 94
+  characters for the subject, and a `feat(chat): ` prefix leaves 88.
+- Use **imperative mood** ("add feature" not "added feature"). This is enforced:
+
+  ```
+  # rejected
+  feat: added retry handling to the chat client
+
+  # accepted
+  feat: add retry handling to the chat client
+  ```
+
+  The check only inspects the first word of the subject, and only flags the
+  non-imperative inflections of a curated list of verbs — `added`/`adds`/`adding`
+  for `add`, and the same three forms for `fix`, `update`, `remove`, `change`,
+  `refactor`, `implement`, `create`, `bump`, `rename`, `move`, `improve`,
+  `resolve`, `revert`, `drop`, `ship` and `wrap`. The error names the imperative
+  replacement. It does not guess from word endings, so subjects like
+  `fix: speed up the parser` or `feat: address the stream reader race` pass
+  untouched.
+
+  One consequence worth knowing: a subject opening with a plural noun that
+  happens to be one of those forms is rejected too — `docs: updates to the
+  README` fails and wants `docs: update the README`. That is the house style
+  either way, so the rule is left as is.
+
+  To teach it another verb, add the imperative form to `VERBS` in
+  `commitlint/imperative-mood.cjs`; all three inflections are derived from it, so
+  a verb can never end up half-covered. Verbs needing a doubled consonant or an
+  irregular past tense go in the `IRREGULAR` table beside it. Add the verb to
+  `EXPECTED_FORMS` in the test file as well — the suite asserts the two lists
+  agree, so a verb added in only one place fails.
 - Do not end the subject with a period
 
 ### Examples
@@ -55,3 +86,10 @@ exponential backoff. Users see a loading indicator during retry.
 
 The commit-msg hook runs `commitlint` automatically on every commit.
 If your commit message is invalid, the commit will be rejected with an error message explaining what needs to be fixed.
+
+The project's custom commitlint rules live in `commitlint/` and have their own
+test suite. Run it with:
+
+```
+npm run test:commitlint-rules
+```
