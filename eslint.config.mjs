@@ -13,6 +13,27 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // Style rules the codebase already satisfies, enabled so regressions are
+    // caught at lint time rather than accumulating silently.
+    linterOptions: {
+      reportUnusedDisableDirectives: "error",
+    },
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "error",
+      "prefer-const": "error",
+      "no-var": "error",
+      eqeqeq: ["error", "smart"],
+    },
+  },
 ]);
 
 export default eslintConfig;
