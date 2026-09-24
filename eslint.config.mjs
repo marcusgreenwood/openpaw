@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gitignored, agent-generated scratch output. Flat config does not read
+    // .gitignore, so these must be listed explicitly -- otherwise a generated
+    // file no contributor wrote can fail `npm run lint`. The patterns are
+    // anchored at the config root, so real source such as app/api/workspace/
+    // is still linted.
+    "workspace/**",
+    ".claw/**",
+    ".openpaw/**",
   ]),
   {
     // Style rules the codebase already satisfies, enabled so regressions are
