@@ -36,6 +36,10 @@ AI agent chat app with tools, skills, scheduled tasks, and multi-channel support
 | `executeCode` | Run JavaScript/TypeScript and Python snippets for quick computations |
 | `askChoice` | Present multiple-choice options to the user |
 | `createCron` / `updateCron` / `deleteCron` / `listCrons` | Create and manage scheduled tasks |
+| `searchContext` | Search workspace files and code for a query |
+| `saveMemory` / `recallMemory` / `listMemories` | Long-term memory via Minns (no-ops when not configured) |
+
+See [docs/tools.md](docs/tools.md) for parameters, return shapes, timeouts, and safety limits.
 
 ---
 
@@ -156,6 +160,8 @@ Open [http://localhost:3000](http://localhost:3000) and start chatting.
 | `npm run build` | Build for production |
 | `npm run start` | Run production server |
 | `npm run test:usage` | Run usage tracking tests |
+| `npm run lint` | Run ESLint |
+| `npm run commitlint` | Lint the most recent commit message |
 
 ---
 
