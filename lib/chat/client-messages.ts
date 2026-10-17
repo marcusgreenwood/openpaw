@@ -16,6 +16,7 @@ function storageKey(sessionId: string, branchId?: string | null): string {
     : `${STORAGE_PREFIX}${sessionId}`;
 }
 
+/** Load the main-conversation messages for a session; `[]` on the server or if nothing is stored. */
 export function loadMessages(sessionId: string): UIMessage[] {
   if (typeof window === "undefined") return [];
   try {
@@ -26,6 +27,7 @@ export function loadMessages(sessionId: string): UIMessage[] {
   }
 }
 
+/** Save the main-conversation messages for a session. No-op on the server or if storage is full. */
 export function saveMessages(sessionId: string, messages: UIMessage[]): void {
   if (typeof window === "undefined") return;
   try {
@@ -35,6 +37,7 @@ export function saveMessages(sessionId: string, messages: UIMessage[]): void {
   }
 }
 
+/** Remove the main-conversation messages for a session. Branch entries are not removed. */
 export function clearSessionMessages(sessionId: string): void {
   if (typeof window === "undefined") return;
   try {
@@ -46,6 +49,7 @@ export function clearSessionMessages(sessionId: string): void {
 
 /* ── Branch-aware helpers ─────────────────────────────────── */
 
+/** Load messages for a branch; a `null` branchId reads the main conversation. */
 export function getMessagesForBranch(
   sessionId: string,
   branchId: string | null
@@ -59,6 +63,7 @@ export function getMessagesForBranch(
   }
 }
 
+/** Save messages for a branch; a `null` branchId writes the main conversation. */
 export function saveMessagesForBranch(
   sessionId: string,
   branchId: string | null,

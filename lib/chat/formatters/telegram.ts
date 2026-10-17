@@ -17,6 +17,7 @@ function escapeMarkdownV2(text: string): string {
  * Convert standard Markdown (from LLM output) to Telegram MarkdownV2.
  *
  * Strategy: preserve code blocks verbatim, escape everything else.
+ * Output longer than 4000 chars is cut to 3990 and marked "(truncated)".
  */
 export function formatForTelegram(text: string): string {
   const parts: string[] = [];
@@ -53,7 +54,11 @@ export function formatForTelegram(text: string): string {
   return result;
 }
 
-/** Split a long message into multiple Telegram-safe chunks */
+/**
+ * Split a long message into multiple Telegram-safe chunks (default 4000 chars).
+ * Breaks at the last newline before the limit, or hard-splits if that would
+ * leave a chunk under half the limit.
+ */
 export function splitTelegramMessage(text: string, maxLen = 4000): string[] {
   if (text.length <= maxLen) return [text];
 

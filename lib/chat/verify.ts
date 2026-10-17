@@ -15,6 +15,9 @@ import * as crypto from "node:crypto";
  * Verify Telegram webhook using the secret_token header.
  * When you register a webhook with `secret_token`, Telegram sends it
  * in the `X-Telegram-Bot-Api-Secret-Token` header.
+ *
+ * If `secretToken` is empty (no `TELEGRAM_WEBHOOK_SECRET` or stored secret),
+ * every request is accepted.
  */
 export function verifyTelegram(
   secretToken: string,
@@ -30,6 +33,8 @@ export function verifyTelegram(
 
 /**
  * Verify WhatsApp (Meta) webhook signature.
+ * Checks the `X-Hub-Signature-256` value (`sha256=<hex>`) against an HMAC-SHA256
+ * of the raw body. Returns `false` if the secret or signature is missing.
  * @see https://developers.facebook.com/docs/graph-api/webhooks/getting-started
  */
 export function verifyWhatsApp(

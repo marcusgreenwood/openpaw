@@ -17,6 +17,7 @@ const CONFIG_PATH = path.join(process.cwd(), ".claw", "channels.json");
 /*  Types                                                             */
 /* ------------------------------------------------------------------ */
 
+/** Shape of `.claw/channels.json`; every platform and field is optional. */
 export interface StoredChannelConfigs {
   // Custom integrations
   telegram?: { token?: string; secret?: string };
@@ -31,6 +32,7 @@ export interface StoredChannelConfigs {
 /*  Read / Write                                                      */
 /* ------------------------------------------------------------------ */
 
+/** Read `.claw/channels.json` from disk. Returns `{}` if the file is missing or invalid. */
 export async function loadStoredChannelConfig(): Promise<StoredChannelConfigs> {
   try {
     const raw = await fs.readFile(CONFIG_PATH, "utf-8");
@@ -40,6 +42,10 @@ export async function loadStoredChannelConfig(): Promise<StoredChannelConfigs> {
   }
 }
 
+/**
+ * Overwrite `.claw/channels.json` with `config`, creating `.claw/` if needed.
+ * Does not touch the in-memory cache; call `invalidateChannelConfigCache()` after saving.
+ */
 export async function saveStoredChannelConfig(
   config: StoredChannelConfigs
 ): Promise<void> {
@@ -54,6 +60,7 @@ export async function saveStoredChannelConfig(
 let _cached: StoredChannelConfigs | null = null;
 let _loadPromise: Promise<void> | null = null;
 
+/** Load the stored config into the in-memory cache once; concurrent callers share one read. */
 export async function ensureChannelConfigLoaded(): Promise<void> {
   if (_cached !== null) return;
   if (!_loadPromise) {
@@ -64,10 +71,12 @@ export async function ensureChannelConfigLoaded(): Promise<void> {
   await _loadPromise;
 }
 
+/** Synchronous read of the cached stored config; `{}` until `ensureChannelConfigLoaded()` has run. */
 export function getCachedStoredConfig(): StoredChannelConfigs {
   return _cached ?? {};
 }
 
+/** Drop the cached config so the next `ensureChannelConfigLoaded()` re-reads the file. */
 export function invalidateChannelConfigCache(): void {
   _cached = null;
   _loadPromise = null;

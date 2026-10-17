@@ -12,6 +12,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { ModelMessage } from "ai";
 
+/** One webhook conversation, keyed by channel and the platform's user/chat ID. */
 export interface ChannelSession {
   /** Internal session identifier: `${channel}:${externalUserId}` */
   id: string;
@@ -42,6 +43,7 @@ function sessionKey(channel: string, externalUserId: string): string {
 /*  CRUD operations                                                   */
 /* ------------------------------------------------------------------ */
 
+/** Look up an existing session without creating one. */
 export function getSession(
   channel: string,
   externalUserId: string
@@ -49,6 +51,10 @@ export function getSession(
   return store.get(sessionKey(channel, externalUserId));
 }
 
+/**
+ * Return the session for `(channel, externalUserId)`, creating an empty one if needed.
+ * `modelId` only applies when a new session is created.
+ */
 export function getOrCreateSession(
   channel: "telegram" | "whatsapp",
   externalUserId: string,
@@ -71,6 +77,7 @@ export function getOrCreateSession(
   return session;
 }
 
+/** Append a message in place and bump `updatedAt`; history is capped at the last 50 messages. */
 export function appendMessage(
   session: ChannelSession,
   message: ModelMessage
@@ -84,10 +91,12 @@ export function appendMessage(
   }
 }
 
+/** Remove a session from memory (the persisted file is only updated on the next `persistSessions()`). */
 export function clearSession(channel: string, externalUserId: string): void {
   store.delete(sessionKey(channel, externalUserId));
 }
 
+/** All in-memory sessions, in insertion order. */
 export function listSessions(): ChannelSession[] {
   return Array.from(store.values());
 }
@@ -102,6 +111,10 @@ const PERSIST_PATH = path.join(
   "channel-sessions.json"
 );
 
+/**
+ * Write all sessions to `.claw/channel-sessions.json` as an object keyed by
+ * session ID (`${channel}:${externalUserId}`). Errors are swallowed.
+ */
 export async function persistSessions(): Promise<void> {
   try {
     await fs.mkdir(path.dirname(PERSIST_PATH), { recursive: true });
@@ -112,6 +125,10 @@ export async function persistSessions(): Promise<void> {
   }
 }
 
+/**
+ * Merge sessions from `.claw/channel-sessions.json` into memory, overwriting
+ * entries with the same key. Returns the number loaded, or 0 if the file is missing or invalid.
+ */
 export async function loadPersistedSessions(): Promise<number> {
   try {
     const raw = await fs.readFile(PERSIST_PATH, "utf-8");
