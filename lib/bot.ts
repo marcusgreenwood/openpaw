@@ -39,6 +39,7 @@ if (process.env.DISCORD_BOT_TOKEN) {
 /*  Create the Chat SDK bot instance                                   */
 /* ------------------------------------------------------------------ */
 
+/** Chat SDK bot with in-memory thread state; includes only the adapters whose tokens are set. */
 export const bot = new Chat({
   userName: "claw",
   adapters,

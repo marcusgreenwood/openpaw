@@ -13,6 +13,8 @@
 
 /**
  * Convert standard Markdown to WhatsApp-compatible formatting.
+ * Headers and `**bold**` become `*bold*`; links become `text (url)`.
+ * Output longer than 64,000 chars is truncated.
  */
 export function formatForWhatsApp(text: string): string {
   let result = text;
@@ -37,6 +39,8 @@ export function formatForWhatsApp(text: string): string {
 /**
  * Split a long message into WhatsApp-safe chunks.
  * WhatsApp max message size is ~65536 chars but practical limit is lower.
+ * Defaults to 4096-char chunks, breaking at newlines where possible and
+ * trimming leading whitespace from each following chunk.
  */
 export function splitWhatsAppMessage(
   text: string,
