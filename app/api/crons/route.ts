@@ -16,11 +16,34 @@ import {
 
 export const runtime = "nodejs";
 
+/**
+ * List all cron jobs stored in `.claw/crons.json`.
+ *
+ * @returns 200 `{ jobs: CronJob[] }` (an empty array if the file is missing).
+ */
 export async function GET() {
   const jobs = await loadCrons();
   return NextResponse.json({ jobs });
 }
 
+/**
+ * Create a cron job, or update one when the body contains an `id`.
+ *
+ * Update (`id` present): forwards `name`, `schedule`, `type`, `command`,
+ * `prompt`, `modelId`, `workspacePath` and `enabled` to `updateCron`. No
+ * validation runs, and fields missing from the body are passed as
+ * `undefined`, which overwrites the stored value, so send the full job.
+ * Responds 404 `{ error: "Cron not found" }` for an unknown id.
+ *
+ * Create (no `id`): `name` and `schedule` (a cron expression) are required.
+ * `type` defaults to `"prompt"` when `prompt` is set, otherwise `"command"`;
+ * a `command` job needs `command` and a `prompt` job needs `prompt`.
+ * `enabled` defaults to true. The schedule is not parsed here; an invalid
+ * expression is only reported when the runner tries to evaluate it.
+ *
+ * @returns 200 with the created or updated `CronJob`, 400 `{ error }` when a
+ *   required field is missing, or 404 on update of an unknown id.
+ */
 export async function POST(req: Request) {
   const body = (await req.json()) as Partial<CronJob> & { id?: string };
 
@@ -75,6 +98,14 @@ export async function POST(req: Request) {
   return NextResponse.json(job);
 }
 
+/**
+ * Delete a cron job by id.
+ *
+ * The id is read from the `id` query parameter (`DELETE /api/crons?id=...`).
+ *
+ * @returns 200 `{ success: true }`, 400 `{ error: "id is required" }`, or
+ *   404 `{ error: "Cron not found" }`.
+ */
 export async function DELETE(req: Request) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");

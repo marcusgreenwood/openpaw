@@ -33,6 +33,19 @@ export const runtime = "nodejs";
 /*  GET — channel status                                              */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Report the status of every supported channel.
+ *
+ * Loads stored credentials from `.claw/channels.json` into the cache first,
+ * so the reported field status reflects both env vars and stored values.
+ *
+ * @param req - Incoming request; its origin is used to build webhook URLs.
+ * @returns 200 with `{ channels, timeouts, totalActiveSessions }`, where
+ *   `channels` maps `slack`, `discord`, `gchat`, `telegram` and `whatsapp` to
+ *   `{ enabled, webhookUrl, activeSessions, fields }`. `activeSessions` is
+ *   always 0 for Chat SDK platforms (their state lives in the SDK adapter)
+ *   and counts in-memory sessions for Telegram and WhatsApp.
+ */
 export async function GET(req: Request) {
   await ensureChannelConfigLoaded();
 
@@ -89,6 +102,18 @@ export async function GET(req: Request) {
 /*  POST — save channel config                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Save credentials for one channel to `.claw/channels.json`.
+ *
+ * Body: `{ channel, config }`, where `channel` is one of `telegram`, `slack`,
+ * `whatsapp`, `discord` or `gchat` and `config` is a string map such as
+ * `{ token, secret }` (WhatsApp also uses `phoneNumberId`). The `config`
+ * object replaces any stored config for that channel wholesale; its keys are
+ * not validated. Environment variables still take precedence over stored
+ * values. The channel config cache is invalidated after writing.
+ *
+ * @returns 200 `{ success: true }`, or 400 `{ error: "Invalid channel" }`.
+ */
 export async function POST(req: Request) {
   const { channel, config } = (await req.json()) as {
     channel: string;
@@ -112,6 +137,16 @@ export async function POST(req: Request) {
 /*  DELETE — clear stored config for a channel                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Remove stored credentials for one channel from `.claw/channels.json`.
+ *
+ * Body: `{ channel }` (JSON, not a query param), using the same channel ids
+ * as POST. Credentials supplied via environment variables are unaffected.
+ * The channel config cache is invalidated after writing.
+ *
+ * @returns 200 `{ success: true }` (also when nothing was stored), or
+ *   400 `{ error: "Invalid channel" }`.
+ */
 export async function DELETE(req: Request) {
   const { channel } = (await req.json()) as { channel: string };
 

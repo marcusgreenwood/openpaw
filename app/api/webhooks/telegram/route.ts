@@ -34,6 +34,21 @@ export const maxDuration = 120;
 /*  Telegram Bot API helper                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Send a message via the Telegram Bot API `sendMessage` method.
+ *
+ * The text is split into chunks of at most 4000 characters (preferring
+ * newline breaks) and sent in order. If a chunk fails, the error is logged
+ * and the whole text, truncated to 4000 characters, is resent once without
+ * `parse_mode` before returning, so chunks after the failed one are dropped
+ * and chunks already sent may appear twice. Failures in plain-text mode are
+ * logged and skipped. Network errors from `fetch` are not caught.
+ *
+ * @param token - Bot token.
+ * @param chatId - Target chat id.
+ * @param text - Message text, already escaped for `parseMode`.
+ * @param parseMode - Telegram parse mode; `""` sends plain text.
+ */
 async function sendTelegramMessage(
   token: string,
   chatId: number | string,
@@ -65,6 +80,13 @@ async function sendTelegramMessage(
   }
 }
 
+/**
+ * Show the "typing…" indicator in a chat via `sendChatAction`.
+ * Best effort: errors are swallowed and the response is not checked.
+ *
+ * @param token - Bot token.
+ * @param chatId - Target chat id.
+ */
 async function sendTypingAction(token: string, chatId: number | string) {
   await fetch(`https://api.telegram.org/bot${token}/sendChatAction`, {
     method: "POST",
@@ -77,6 +99,28 @@ async function sendTypingAction(token: string, chatId: number | string) {
 /*  POST handler                                                      */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Handle a Telegram Bot API update.
+ *
+ * Verifies the `X-Telegram-Bot-Api-Secret-Token` header against the
+ * configured secret. If no secret is configured, `verifyTelegram` accepts
+ * every request. Only `update.message.text` is handled; other updates are
+ * acknowledged and ignored. `/start` sends a greeting and `/clear` resets the
+ * session. Any other text is appended to the in-memory session for the
+ * sender (keyed by `from.id`, falling back to the chat id), run through
+ * `handleChatBlocking` with the session's model, and the reply is formatted
+ * for MarkdownV2 and sent back. Sessions are persisted in the background.
+ * Agent errors and timeouts are reported to the user in the chat.
+ *
+ * Config comes from env vars or the cached `.claw/channels.json` values. This
+ * handler does not load that cache itself, so a stored-only token is seen
+ * only after another route (e.g. `GET /api/channels`) has populated it.
+ *
+ * @returns 503 `{ error: "Telegram not configured" }` when no bot token is
+ *   available, 401 `{ error: "Invalid secret" }` on a secret mismatch, and
+ *   200 `{ ok: true }` otherwise, including when the agent fails, so Telegram
+ *   does not retry the update.
+ */
 export async function POST(req: Request) {
   const config = getTelegramConfig();
   if (!config.enabled) {
