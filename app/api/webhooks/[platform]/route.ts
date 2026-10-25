@@ -16,6 +16,18 @@ export const maxDuration = 120;
 
 type Platform = keyof typeof bot.webhooks;
 
+/**
+ * Dispatch an incoming webhook to the Chat SDK adapter for `platform`.
+ *
+ * The adapter verifies the request and handles the message. Work it defers
+ * via `waitUntil` runs after the response through Next.js `after()`, and
+ * `maxDuration = 120` gives long agent responses time to finish.
+ *
+ * @param context - Route params; `platform` is the dynamic path segment
+ *   (e.g. `slack`, `discord`, `gchat`).
+ * @returns The adapter's response, or 404 `Unknown platform: <platform>`
+ *   (plain text) when no adapter is configured for that segment.
+ */
 export async function POST(
   request: Request,
   context: { params: Promise<{ platform: string }> }

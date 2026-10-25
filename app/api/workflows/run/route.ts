@@ -9,6 +9,20 @@ import type { WorkflowStep, WorkflowStepResult } from "@/lib/workflows/types";
 
 export const runtime = "nodejs";
 
+/**
+ * Run a shell command with `child_process.exec` and capture its output.
+ *
+ * The command runs as given. Unlike the `executeBash` tool, it is not checked
+ * against `BLOCKED_PATTERNS`. Output is capped at 1 MiB per stream. The
+ * promise never rejects. On a non-zero exit, timeout or buffer overflow,
+ * `exitCode` is taken from the exec error's `code` (1 when that is absent),
+ * and a spawn failure resolves with `exitCode: 1`.
+ *
+ * @param command - Shell command line.
+ * @param cwd - Working directory.
+ * @param timeout - Kill the process after this many milliseconds.
+ * @returns `{ stdout, stderr, exitCode }`.
+ */
 function execCommand(
   command: string,
   cwd: string,
@@ -32,6 +46,17 @@ function execCommand(
   });
 }
 
+/**
+ * Evaluate a condition step's expression against the previous step's output.
+ *
+ * `expression` is arbitrary JavaScript, compiled with `new Function` and run
+ * on the server, with the previous output in scope as the string `output`
+ * (e.g. `output.includes("PASS")`). The result is coerced to a boolean.
+ * Syntax or runtime errors evaluate to false.
+ *
+ * @param expression - JavaScript expression.
+ * @param output - Previous step's output.
+ */
 function evaluateCondition(expression: string, output: string): boolean {
   try {
     const fn = new Function("output", `return Boolean(${expression})`);
@@ -41,6 +66,33 @@ function evaluateCondition(expression: string, output: string): boolean {
   }
 }
 
+/**
+ * Execute workflow steps in order and stream progress as Server-Sent Events.
+ *
+ * Body: `{ workflowId, workspacePath?, steps }`. The steps in the body are
+ * what runs. `workflowId` is not used to load a stored workflow.
+ * `workspacePath` (default `process.cwd()`) is the working directory for
+ * command steps.
+ *
+ * Step behaviour, with `{{previousOutput}}` in commands and prompts replaced
+ * by the previous step's output:
+ * - `command`: runs via {@link execCommand} with `step.timeout` (default
+ *   60s). It fails on a non-zero exit code.
+ * - `prompt`: not sent to a model. It succeeds immediately and echoes the
+ *   expanded prompt as its output.
+ * - `condition`: evaluates `step.condition` with {@link evaluateCondition},
+ *   then jumps to the step whose id is `onTrue`/`onFalse`. With no target, or
+ *   a target id that does not exist, it continues with the next step. Jumps
+ *   may go backwards, and nothing guards against loops.
+ * - unknown type: marked `skipped`.
+ *
+ * Events: `step-start` `{ stepId, stepIndex, name, type }`, `step-complete`
+ * (a `WorkflowStepResult`) and a final `run-complete` `{ status }` that is
+ * `"completed"`, or `"failed"` when a step fails without `continueOnError`.
+ *
+ * @returns A `text/event-stream` response, or 400 JSON
+ *   `{ error: "steps are required" }` when `steps` is missing or empty.
+ */
 export async function POST(req: Request) {
   const body = (await req.json()) as {
     workflowId: string;
