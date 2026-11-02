@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/Badge";
 
 interface ToolResultWrapperProps {
   toolName: string;
+  /** One-line description shown in the always-visible header. */
   summary: string;
   badge?: { label: string; variant: "success" | "error" | "default" };
   children: React.ReactNode;
+  /** Whether the detail section starts expanded. Defaults to false. */
   defaultOpen?: boolean;
 }
 
@@ -21,6 +23,10 @@ const TOOL_ICONS: Record<string, string> = {
   executeCode: "▷",
 };
 
+/**
+ * Collapsible card around a completed tool result: a compact header with the tool icon,
+ * summary, and optional badge, expanding to show the tool-specific detail as children.
+ */
 export function ToolResultWrapper({
   toolName,
   summary,

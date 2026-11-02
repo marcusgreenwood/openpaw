@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 interface ProcessStatusProps {
   tool: string;
   status: "running" | "error";
+  /** Tool input; its command, path, or language field is shown alongside the label. */
   input?: Record<string, unknown>;
+  /** Error text shown when status is "error". */
   error?: string;
 }
 
@@ -27,6 +29,10 @@ const TOOL_ICONS: Record<string, string> = {
   executeCode: ">",
 };
 
+/**
+ * Inline status row for a tool call: a spinner while it is running (for every tool except
+ * executeBash, which uses LiveTerminal) and a failure line when the part is in output-error.
+ */
 export function ProcessStatus({ tool, status, input, error }: ProcessStatusProps) {
   const label = TOOL_LABELS[tool] ?? tool;
   const icon = TOOL_ICONS[tool] ?? ">";

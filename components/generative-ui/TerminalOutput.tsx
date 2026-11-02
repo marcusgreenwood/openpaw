@@ -7,11 +7,17 @@ interface TerminalOutputProps {
   stdout: string;
   stderr: string;
   exitCode: number;
+  /** Run time in milliseconds; shown as ms below one second, otherwise as seconds. */
   durationMs?: number;
+  /** Label shown in the header. Defaults to "bash". */
   language?: string;
   command?: string;
 }
 
+/**
+ * Final stdout/stderr and exit-code badge for a completed executeBash or executeCode call.
+ * Replaces LiveTerminal once an executeBash call reaches output-available.
+ */
 export function TerminalOutput({
   stdout,
   stderr,

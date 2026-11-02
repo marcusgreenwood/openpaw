@@ -6,6 +6,10 @@ interface GlassCardProps {
   glow?: "cyan" | "purple" | "none";
 }
 
+/**
+ * Container with the shared glass-card surface and an optional cyan or purple glow
+ * (no glow by default).
+ */
 export function GlassCard({
   children,
   className,

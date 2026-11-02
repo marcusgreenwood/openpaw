@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 
 interface CodeBlockProps {
   code: string;
+  /** Badge label; inferred from the filename extension when omitted, falling back to "text". */
   language?: string;
   filename?: string;
 }
@@ -37,6 +38,10 @@ function detectLanguage(filename?: string): string {
   return map[ext ?? ""] ?? "text";
 }
 
+/**
+ * Read-only code panel with a filename/language header and a copy-to-clipboard button.
+ * Shown inside ToolResultWrapper for completed readFile tool calls.
+ */
 export function CodeBlock({ code, language, filename }: CodeBlockProps) {
   const [copied, setCopied] = useState(false);
   const lang = language ?? detectLanguage(filename);

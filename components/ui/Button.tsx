@@ -7,6 +7,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   size?: "sm" | "md" | "lg";
 }
 
+/**
+ * Styled native button that forwards all other button props. Variants are "ghost"
+ * (default), "primary", and "danger"; sizes are "sm", "md" (default), and "lg".
+ */
 export function Button({
   variant = "ghost",
   size = "md",

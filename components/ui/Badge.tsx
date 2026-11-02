@@ -6,6 +6,10 @@ interface BadgeProps {
   className?: string;
 }
 
+/**
+ * Small monospace pill label. Variants: "default" (neutral), "success" (green),
+ * "error" (red), "warning" (yellow), "cyan", and "purple".
+ */
 export function Badge({
   children,
   variant = "default",

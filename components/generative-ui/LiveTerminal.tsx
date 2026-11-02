@@ -7,8 +7,11 @@ import { useLiveTerminal, type TerminalLine } from "@/lib/hooks/useLiveTerminal"
 
 interface LiveTerminalProps {
   command: string;
+  /** Working directory the command runs in on the server. */
   workspacePath: string;
+  /** Start the command once on mount. Defaults to true. */
   autoRun?: boolean;
+  /** Called once with the exit code and captured lines after the command finishes. */
   onComplete?: (exitCode: number, output: TerminalLine[]) => void;
 }
 
@@ -24,6 +27,12 @@ function highlightLine(text: string, type: TerminalLine["type"]) {
   return "text-gray-200";
 }
 
+/**
+ * Streams SSE output from /api/terminal (via useLiveTerminal) while an executeBash call is
+ * in the input-streaming or input-available state. Once the call completes, TerminalOutput
+ * takes over. Supports collapsing, stopping the command, and auto-scroll that pauses while
+ * the user scrolls up.
+ */
 export function LiveTerminal({
   command,
   workspacePath,
