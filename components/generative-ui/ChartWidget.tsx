@@ -11,6 +11,7 @@ const TREMOR_COLORS = ["cyan", "violet", "emerald", "amber", "rose", "blue", "in
 
 /** Chart config from the agent (Chart.js-compatible format for consistency). */
 export interface ChartConfig {
+  /** "pie" and "doughnut" render a Tremor DonutChart from the first dataset only. */
   type: "bar" | "line" | "area" | "pie" | "doughnut";
   data: {
     labels?: string[];
@@ -55,6 +56,10 @@ interface ChartWidgetProps {
   className?: string;
 }
 
+/**
+ * Renders a Chart.js-style config with Tremor charts (bar, line, area, or donut/pie).
+ * Renders nothing when the config has no labels or datasets.
+ */
 export function ChartWidget({ config, className }: ChartWidgetProps) {
   const colors = TREMOR_COLORS.slice(0, config.data.datasets.length);
 

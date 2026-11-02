@@ -5,9 +5,14 @@ import { cn } from "@/lib/utils";
 interface MultipleChoiceProps {
   question: string;
   options: string[];
+  /** Called with the chosen option; the chat sends it back as the user's reply. */
   onSelect: (option: string) => void;
 }
 
+/**
+ * Question with one button per option, rendered inline (without ToolResultWrapper) for a
+ * completed askChoice tool call.
+ */
 export function MultipleChoice({ question, options, onSelect }: MultipleChoiceProps) {
   return (
     <div className="my-3 space-y-2">

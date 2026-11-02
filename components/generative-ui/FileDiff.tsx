@@ -5,10 +5,15 @@ import { Badge } from "@/components/ui/Badge";
 
 interface FileDiffProps {
   path: string;
+  /** Previous file contents, or null when the file was newly created. */
   before: string | null;
   after: string;
 }
 
+/**
+ * Shows the result of a writeFile tool call: new files render every line as an addition,
+ * modified files show the new content with line numbers (not a true line diff).
+ */
 export function FileDiff({ path, before, after }: FileDiffProps) {
   const isNew = before === null;
   const beforeLines = before?.split("\n") ?? [];

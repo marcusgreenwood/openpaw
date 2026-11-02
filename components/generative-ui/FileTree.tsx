@@ -10,9 +10,14 @@ interface FileEntry {
 
 interface FileTreeProps {
   entries: FileEntry[];
+  /** Directory path shown in the header; the header is hidden when omitted. */
   basePath?: string;
 }
 
+/**
+ * Flat directory listing for a completed listDirectory tool call, with directories
+ * sorted first and then entries alphabetically.
+ */
 export function FileTree({ entries, basePath }: FileTreeProps) {
   const sorted = [...entries].sort((a, b) => {
     if (a.type !== b.type) return a.type === "directory" ? -1 : 1;

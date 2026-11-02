@@ -55,6 +55,12 @@ const subscribe = () => () => {};
 const getSnapshot = () => true;
 const getServerSnapshot = () => false;
 
+/**
+ * Icon button that cycles the theme in useThemeStore through dark, light, and system.
+ * The choice is persisted to localStorage under "openpaw-theme"; in system mode it also
+ * follows OS color-scheme changes. Renders a placeholder until mounted to avoid a
+ * hydration mismatch.
+ */
 export function ThemeToggle() {
   const { theme, setTheme } = useThemeStore();
   const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
